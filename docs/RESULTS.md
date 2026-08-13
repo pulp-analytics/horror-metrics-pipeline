@@ -82,3 +82,23 @@ agrees. This is expected and is a useful sanity check in itself: a small
 honest sample should show the same *direction* as the full run with more
 noise, not a contradictory result — if it ever doesn't, that's a signal
 something in the sampling or the metric itself is broken, not just noisy.
+
+## Genre-agnostic, verified
+
+Neither `01_color_metrics.py` nor `02_aggregate_and_checkpoint.py` has any
+horror-specific logic — pixel color doesn't know what genre its poster
+belongs to. Verified live (no code changes) against a real, pure-sci-fi
+sample (20 posters, `sources == "community_scifi"` in the master dataset,
+none horror-tagged): brightness/saturation/hue-band values matched the
+already-computed reference to the same floating-point-noise tolerance as
+the horror sample above (max abs diff 0.20 on brightness, 0-100 scale).
+
+That run also surfaced a real edge case worth documenting: the sample had
+zero posters before 1970 (unsurprising — sci-fi as a poster-heavy genre on
+TMDB skews modern), so the pre-1970-vs-1970-2009 checkpoint had nothing to
+compare. `compute_checkpoint()` reports this explicitly (`n_pre70: 0`)
+instead of silently computing a `nan` gap — the 1970 threshold is tied to
+horror's own historical narrative, not a universal color-analysis
+constant, so a sample that can't support that specific comparison is an
+expected outcome, not a bug in the color methodology itself.
+

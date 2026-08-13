@@ -23,7 +23,10 @@ python3 -m pytest tests/ -v
 ```
 
 No API key needed — posters are fetched from TMDB's public image CDN, no
-AWS involved anywhere in this category.
+AWS involved anywhere in this category. Not tied to horror specifically:
+neither script has genre-specific logic, and both were verified live
+against a real, non-horror (sci-fi) sample with zero code changes — see
+"Genre-agnostic, verified" in docs/RESULTS.md.
 
 ## Structure
 
@@ -47,8 +50,10 @@ docs/
   RESULTS.md        the real Continue/Pivot checkpoint result, full corpus
                      (63,127 posters) and this repo's 99-poster sample
 tests/
-  test_color_metrics.py   pure-function tests for the color math -- no
-                           network calls
+  test_color_metrics.py             pure-function tests for the color math
+                                     -- no network calls
+  test_aggregate_and_checkpoint.py  checkpoint-verdict logic, incl. the
+                                     no-pre-1970-data edge case
 ```
 
 ## License

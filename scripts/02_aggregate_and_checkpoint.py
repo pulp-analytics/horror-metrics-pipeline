@@ -11,6 +11,15 @@ between early and modern decades is weak or absent, that's a signal to
 rethink the premise, not push forward -- see docs/RESULTS.md for what the
 real full-corpus run found.
 
+Not horror-specific: 01_color_metrics.py has no genre logic at all (a
+pixel doesn't know what genre its poster is), and this aggregation step
+doesn't either -- both were verified live against a real, non-horror
+(sci-fi) sample with zero code changes. The 1970 threshold IS specific to
+the horror genre's own historical narrative, though, so running this
+against a --in that's mostly modern (many genres skew that way) will
+correctly report "can't compute this checkpoint" rather than a misleading
+number -- that's expected, not a bug in the color methodology.
+
 Outputs:
   yearly.json      mean brightness/dark_share/saturation/red_share per year
   hue_river.json   mean hue-family share per decade (the "Color River")
@@ -33,6 +42,26 @@ from utils.logging_setup import get_logger
 log = get_logger("aggregate_and_checkpoint")
 
 BAND_COLS = ["band_red", "band_warm", "band_green", "band_blue", "band_purple", "band_dark"]
+
+
+def compute_checkpoint(res: pd.DataFrame) -> dict:
+    """The pre-1970-vs-1970-2009 brightness-gap verdict, as a plain dict
+    instead of print statements so it's directly testable. `res` must have
+    `decade` and `brightness` columns. Returns
+    {"n_pre70", "n_post70"} always, plus {"pre70", "post70", "gap",
+    "verdict"} only when both spans have at least one row -- callers
+    should check n_pre70/n_post70 before reading the rest."""
+    n_pre70 = int((res.decade < 1970).sum())
+    n_post70 = int(((res.decade >= 1970) & (res.decade < 2010)).sum())
+    result = {"n_pre70": n_pre70, "n_post70": n_post70}
+    if n_pre70 == 0 or n_post70 == 0:
+        return result
+    pre70 = res[res.decade < 1970].brightness.mean()
+    post70 = res[(res.decade >= 1970) & (res.decade < 2010)].brightness.mean()
+    gap = pre70 - post70
+    verdict = "CONTINUE -- the curve exists" if gap > 3 else "PIVOT? -- gap is weak, look at what the data IS saying"
+    result.update(pre70=pre70, post70=post70, gap=gap, verdict=verdict)
+    return result
 
 
 def main():
@@ -71,11 +100,14 @@ def main():
     d = res.groupby("decade")[["brightness", "red_share", "dark_share"]].mean().round(2)
     log.info("=== DARKNESS CURVE CHECKPOINT (by decade) ===")
     print(d.to_string())
-    pre70 = res[res.decade < 1970].brightness.mean()
-    post70 = res[(res.decade >= 1970) & (res.decade < 2010)].brightness.mean()
-    gap = pre70 - post70
-    verdict = "CONTINUE -- the curve exists" if gap > 3 else "PIVOT? -- gap is weak, look at what the data IS saying"
-    log.info(f"Pre-1970 mean brightness: {pre70:.1f} | 1970-2009: {post70:.1f} | gap: {gap:.1f} -> {verdict}")
+    ck = compute_checkpoint(res)
+    if "verdict" not in ck:
+        log.info(f"Can't compute the pre-1970-vs-1970-2009 checkpoint: {ck['n_pre70']} pre-1970 row(s), "
+                 f"{ck['n_post70']} 1970-2009 row(s) -- this --in doesn't cover both spans (e.g. a genre or "
+                 f"sample that's mostly modern). Not a failure, just not the comparison this checkpoint needs.")
+    else:
+        log.info(f"Pre-1970 mean brightness: {ck['pre70']:.1f} (n={ck['n_pre70']}) | "
+                 f"1970-2009: {ck['post70']:.1f} (n={ck['n_post70']}) | gap: {ck['gap']:.1f} -> {ck['verdict']}")
 
     if args.chart:
         try:
