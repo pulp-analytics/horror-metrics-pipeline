@@ -1,0 +1,100 @@
+id,label,score,title,year,is_animal,is_creature
+2969,uncertain,0.323,A Daughter Of Destiny,1928,False,False
+14594,none,0.582,The Thin Man Goes Home,1944,False,False
+19131,uncertain,0.341,Scotland Yard Hunts Dr. Mabuse,1963,False,False
+19169,uncertain,0.482,Nightmare Alley,1947,False,False
+19971,doll,0.519,The Little Girl Who Lives Down the Lane,1976,False,True
+20043,uncertain,0.227,Royal Space Force - The Wings of Honneamise,1987,False,False
+24008,uncertain,0.186,Monkey Business,1952,False,False
+25004,uncertain,0.29,Black Ice,2007,False,False
+27509,uncertain,0.22,The Penalty,1920,False,False
+28910,uncertain,0.332,Mark of the Vampire,1935,False,False
+29297,uncertain,0.324,Destination Inner Space,1966,False,False
+31948,uncertain,0.371,Gray Lady Down,1978,False,False
+32849,uncertain,0.456,Abandoned,1949,False,False
+33546,uncertain,0.425,The Time of Their Lives,1946,False,False
+34734,uncertain,0.383,Stir of Echoes: The Homecoming,2007,False,False
+36778,uncertain,0.486,Spellbinder,1988,False,False
+38456,uncertain,0.249,Charlie Chan's Murder Cruise,1940,False,False
+40091,uncertain,0.222,Sex Madness,1938,False,False
+40252,witch,0.574,Witchboard III: The Possession,1997,False,True
+44169,bird,0.551,The Falcon in Danger,1943,True,True
+47062,uncertain,0.217,Miraculous Virgin,1967,False,False
+47286,uncertain,0.464,Cool Air,1999,False,False
+51565,snake,0.687,The Dragon Murder Case,1934,True,True
+52204,uncertain,0.341,The Brain Eaters,1958,False,False
+54539,uncertain,0.198,The Inhuman Woman,1924,False,False
+56429,uncertain,0.431,Up from the Depths,1979,False,False
+58421,uncertain,0.225,Ignition,2002,False,False
+60523,uncertain,0.258,Chicago Calling,1951,False,False
+64568,uncertain,0.285,Taste of Fear,1961,False,False
+67430,uncertain,0.186,Zoo zéro,1979,False,False
+69351,uncertain,0.256,Beauty and the Beast,2005,False,False
+74707,uncertain,0.357,Mystery House,1938,False,False
+75506,uncertain,0.363,World Without End,1956,False,False
+77067,zombie,0.802,DeadHeads,2011,False,True
+80342,snake,0.679,Lady Dragon 2,1993,True,True
+81829,werewolf,0.673,Bulldog Drummond,1929,False,True
+84770,uncertain,0.247,The Large Rope,1953,False,False
+93394,none,0.619,Elevator,2013,False,False
+94716,uncertain,0.48,A Cottage on Dartmoor,1929,False,False
+136686,uncertain,0.211,Doraemon: Nobita and the Green Giant Legend,2008,False,False
+138999,uncertain,0.272,Little Corey Gorey,1993,False,False
+140418,uncertain,0.402,Bulldog Drummond at Bay,1937,False,False
+160399,shark,0.596,Megazone 23 III - Part 1 - The Awakening of Eve,1989,True,True
+173095,uncertain,0.31,The Brides Wore Blood,1972,False,False
+201989,uncertain,0.244,Bottles,1936,False,False
+213215,uncertain,0.233,The Returning,1983,False,False
+214905,uncertain,0.457,Below the Deadline,1936,False,False
+224473,uncertain,0.321,The Sweet Sound of Death,1965,False,False
+249294,uncertain,0.253,Celia: The Sinister Affair of Poor Aunt Nora,1949,False,False
+267338,uncertain,0.441,"Love, Honor and Oh-Baby!",1940,False,False
+280002,uncertain,0.237,The Remaining,2014,False,False
+294307,uncertain,0.313,The Last Hit,1993,False,False
+299460,uncertain,0.212,The Mother  Tree,1958,False,False
+324153,uncertain,0.271,The Shadow Laughs,1933,False,False
+324621,uncertain,0.299,The Return,1980,False,False
+325622,uncertain,0.2,The Hound of the Baskervilles,1921,False,False
+340758,skeleton,0.503,Never Mention Murder,1965,False,True
+361975,uncertain,0.296,The Hoop of Bermuda,1988,False,False
+382290,doll,0.823,M・Y・F・A・C・E,2005,False,True
+440871,uncertain,0.189,Ghost Valley Raiders,1940,False,False
+444713,none,0.539,Commando 2 - The Black Money Trail,2017,False,False
+453424,uncertain,0.446,Dr. Masher,1969,False,False
+459420,uncertain,0.405,The Four Just Men,1921,False,False
+482337,uncertain,0.32,Benaam,1999,False,False
+483586,uncertain,0.353,Rites of Blood,2004,False,False
+510733,uncertain,0.417,The Ghost Breaker,1922,False,False
+517574,shark,0.932,Doombeach,1989,True,True
+535249,uncertain,0.29,Our Correspondent,1959,False,False
+539980,uncertain,0.365,Maigret at the Minister,1987,False,False
+547231,uncertain,0.314,Pizza Hunt,2003,False,False
+548084,uncertain,0.344,The Perfect Murder,1992,False,False
+630737,uncertain,0.239,2099: The Soldier Protocol,2019,False,False
+633786,uncertain,0.246,Faulty Father,2019,False,False
+651517,snake,0.609,Riverdead,2007,True,True
+668985,uncertain,0.184,Who Killed Eve?,1934,False,False
+747083,uncertain,0.42,Noite de Lamentações (Night of Wails),2020,False,False
+752825,demon,0.935,The Demon,1970,False,True
+752851,uncertain,0.243,Case of a Young Lord 7: Red Crane House,1958,False,False
+781001,uncertain,0.235,That,2012,False,False
+789473,uncertain,0.247,The Mysterious Mr. Hyde,1964,False,False
+795813,none,0.633,I'm Your Man,2021,False,False
+872243,uncertain,0.361,Darkman,1992,False,False
+921652,uncertain,0.275,Body of Ashes,2022,False,False
+929912,uncertain,0.278,Droga Digitale,2022,False,False
+938049,uncertain,0.416,Donor,2021,False,False
+990167,uncertain,0.334,Dead Pigeon on Beethoven Street,1972,False,False
+1013699,uncertain,0.18,The Shining Pyramid,1979,False,False
+1068455,uncertain,0.282,All That You Love Will Be Carried Away,2019,False,False
+1075682,uncertain,0.315,Three Silhouettes in Black,1985,False,False
+1114351,uncertain,0.239,Actual Record! Real Horror Posted Video 31,2016,False,False
+1156131,uncertain,0.289,두번째 상봉,1967,False,False
+1225036,uncertain,0.488,Ha Khel Savlyancha,1976,False,False
+1487521,uncertain,0.495,Conserva,2025,False,False
+1494221,witch,0.839,Sticks and Stones: Investigating the Blair Witch,1999,False,True
+1577810,uncertain,0.479,Pandora's Box,2025,False,False
+1615804,uncertain,0.169,The Big Scoop: Challenge at Twilight,1959,False,False
+1634691,none,0.791,Little Signs,2026,False,False
+1638974,uncertain,0.268,Fools in the Dark,1924,False,False
+1700685,uncertain,0.311,This is Not an Exit,2025,False,False

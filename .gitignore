@@ -1,3 +1,7 @@
+# local poster download cache (see scripts/utils/posters.py) -- not sample
+# data, just a scratch cache of downloaded images, rebuilt on demand
+data/posters_cache/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

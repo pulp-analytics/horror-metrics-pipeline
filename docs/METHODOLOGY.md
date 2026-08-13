@@ -144,3 +144,79 @@ whether the script itself is behaving consistently. Treat these three
 scripts as correct, faithful ports of the real methodology; don't treat a
 specific historical numeric value as something a fresh run is guaranteed
 to reproduce exactly, the way color's CIELAB math is.
+
+## CLIP semantic embeddings
+
+Five scripts, all zero-shot (no training, no labeled examples -- just
+comparing a poster's CLIP embedding against text-prompt "prototypes"),
+all sharing one embedding cache built once:
+
+- **`05_clip_embed.py`** — embeds every poster with CLIP ViT-B/32 once,
+  caches the result (`.npz`, L2-normalized 512-d vectors). Everything
+  below except `10_clip_medium.py` reads this cache instead of
+  re-embedding, so they run in seconds.
+- **`06_clip_census.py`** — "Monster Census": which of ~18 creature/
+  monster labels (or "none") a poster's embedding is closest to, via a
+  prompt-ensemble prototype per label (2-3 phrasings, averaged) and a
+  temperature-100 softmax. Below `--min-score` (default 0.5), the label
+  becomes "uncertain" instead of a low-confidence guess. Ships with a
+  real, hand-verified validation set (`--validate`) — famous posters
+  where someone actually looked at the artwork and recorded what should
+  be detected (e.g. Godzilla 1954 → giant_monster, Jaws 1975 → shark).
+- **`07_clip_fear_axis.py`** — a continuous dread↔calm score:
+  `cos(embedding, DREAD_prototype) - cos(embedding, CALM_prototype)`.
+- **`08_clip_typography_axis.py`** — a continuous ornate↔minimal
+  lettering score, same formula shape as fear_axis. See the script's own
+  docstring for the real methodological story: three other approaches
+  (8 discrete style categories; OCR-cropped title classification;
+  MSER+CLAHE-cropped classification) were actually tried and scored
+  worse (6/10, 4/10, 0.72-0.78 corr respectively) before landing on this
+  one (0.81 corr) — a genuine "here's what didn't work and why" result,
+  not just the method that happened to get built.
+- **`09_clip_genre_classifier.py`** — zero-shot: does a poster's artwork
+  alone "look like" horror/scifi/thriller/mystery, compared against
+  whatever its catalog genre actually is (if `--in` has a `genre` column).
+- **`10_clip_medium.py`** — painted/illustrated vs. photographic, zero-shot.
+  Doesn't use the shared embedding cache (embeds fresh) — see its own
+  docstring for why that's a faithful port, not an inconsistency.
+
+### Why continuous axes, not discrete categories, for fear/typography
+
+Both fear_axis and typography_axis project a poster's embedding onto a
+line between two prompt-ensemble poles rather than classifying into
+buckets. This avoids a specific, real failure mode: a discrete category
+like "gore" or "dripping" (typography) tends to become an *attractor* that
+ends up measuring something else entirely (overall darkness, in
+typography's case) rather than the thing it's named after. A continuous
+axis has nowhere to hide that confusion — it's always exactly "how much
+closer to pole A than pole B," nothing more. This project's own napkin
+math backs it up empirically: typography's continuous version scored 0.81
+correlation against hand-verified ground truth vs. 6/10 for the discrete
+8-category version it replaced.
+
+### What this repo does NOT compute for these axes
+
+Neither `07` nor `08` bins posters into named registers
+(nightmarish/dreadful/.../calm, or ornate/decorative/.../minimal) by
+quantile, and neither aggregates by decade. Both are corpus-relative —
+which register a poster falls into depends on the quantile distribution
+of *whatever else is in the same run*, not just that one poster — so
+they're aggregation logic, out of scope for this repo (see the README's
+Scope note), same reasoning as color's dropped Continue/Pivot checkpoint.
+The raw `axis` score this repo outputs is a pure per-poster value,
+independent of anything else in the batch.
+
+### Reproduction gap here is similar to perceptual quality, not color
+
+A live check against 5 posters found the two continuous axis scores
+(`fear_axis`, `typography_axis`) close to their historical reference
+values (differences in the 0.001-0.003 range) — much tighter than
+perceptual quality's ML metrics, though not the sub-floating-point-noise
+match color achieved. `06_clip_census.py`'s discrete top-label pick
+flipped in 1 of 5 sampled posters (a near-threshold case, "clown" vs.
+"uncertain," both plausible given the actual scores were close), and
+`10_clip_medium.py`'s continuous `p_painted` showed larger absolute
+differences (up to ~0.08) though it agreed on the discrete painted/photo
+call in all 5 cases. Same likely cause as perceptual quality: the exact
+original poster bytes and/or exact library versions aren't reproducible
+months later. See docs/RESULTS.md for the specific numbers.

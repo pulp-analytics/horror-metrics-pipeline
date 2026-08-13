@@ -150,3 +150,34 @@ the ViT-L/14 model download (~1.7GB) took long enough in this environment
 that the numeric comparison wasn't re-run after the shared-cache
 refactor — nothing about that refactor changes the scoring logic itself,
 so the same caveat applies.
+
+## CLIP semantic embeddings
+
+A live 5-poster check against real historical reference values
+(`data/master_dataset.csv`'s `clip_fear_axis_axis`, `clip_typography_axis`,
+`clip_medium_p_painted`, `clip_census_label`) found:
+
+| metric | scale | max abs diff observed |
+|---|---|---|
+| `fear_axis` (`07`) | continuous, no fixed range (typically ±0.05) | 0.00302 |
+| `typography_axis` (`08`) | same shape | 0.00308 |
+| `medium.p_painted` (`10`) | 0-1 | 0.1321 |
+| `census` top label (`06`) | discrete | flipped in 1/5 (clown vs. uncertain, both plausible — scores 0.555 vs 0.482) |
+
+The two continuous axis scores reproduce tightly (three-decimal agreement)
+— much closer than perceptual quality's ML metrics, though not
+color's sub-floating-point-noise match. `10_clip_medium.py`'s
+`p_painted` showed the largest gap (up to 0.13 on a 0-1 scale) but agreed
+on the discrete painted/photo call in all 5 sampled posters regardless.
+`06_clip_census.py`'s single label flip happened on a genuinely
+borderline case (both scores sat in the low-confidence 0.4-0.6 range,
+where a small embedding difference can flip the softmax argmax) — not a
+sign the taxonomy or method is unreliable, but a real illustration of
+"per-poster labels are noisy by design" from the script's own docstring.
+Same likely root cause as perceptual quality's gap: the exact original
+poster bytes and/or open_clip library version aren't reproducible months
+later, not a bug in this port.
+
+The full 99-poster `data/sample_output/clip_embeddings.npz` was generated
+live for this repo (not copied from the private project) — `06`-`09` in
+this repo's own sample commands read directly from it.
