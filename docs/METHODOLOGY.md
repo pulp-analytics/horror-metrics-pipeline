@@ -26,9 +26,10 @@ downloads fast) and, per poster:
    every pixel gets bucketed into one of six mutually exclusive families
    (a pixel counts as "dark" if it's too dim, too grey, or too desaturated
    to have a meaningful hue at all — `v < 0.12 OR L* < 15 OR s < 0.15`).
-   These six shares always sum to 1.0 per poster and are what
-   `02_aggregate_and_checkpoint.py` averages per decade into the "Color
-   River" chart.
+   These six shares always sum to 1.0 per poster; averaged per decade
+   across many posters, they're what the project's "Color River" chart is
+   built from downstream (aggregation is out of scope for this repo — see
+   the README).
 6. **Dominant 5-color palette**, via **saturation-weighted k-means in
    CIELAB space** — the one genuinely non-obvious step, based on ["The
    Colour of Horror" (ACM, 2022)](https://dl.acm.org/doi/10.1145/3532719):
@@ -69,15 +70,20 @@ so a small saturated region is far more likely to earn its own cluster.
   detection use standard hue-wheel boundaries, not a simulated
   color-vision-deficiency transform.
 
-## The checkpoint: why this matters before building anything else
+## Why this metric existed before any of the others
 
-`02_aggregate_and_checkpoint.py`'s "CONTINUE/PIVOT" verdict isn't
-decoration — it's the actual go/no-go gate the real project used before
-investing in any of the other metric categories (CLIP/SigLIP, perceptual
-quality, geometric composition). The premise being tested: horror posters
-get visually darker over time. If the pre-1970 vs. 1970-2009 mean
-brightness gap is weak (≤3 L* points, the threshold in the script), that's
-a signal the cultural assumption isn't actually supported by the data, and
-the project's premise needs rethinking before sinking more time into
-metrics that assume it's true. See docs/RESULTS.md for what the real
-63,127-poster corpus found.
+Color was the first metric category built, and not arbitrarily: it was
+the real go/no-go gate the project used before investing in any of the
+other categories (CLIP/SigLIP, perceptual quality, geometric
+composition). The premise being tested: horror posters get visually
+darker over time. If the pre-1970 vs. 1970-2009 mean brightness gap
+turned out to be weak, that's a signal the cultural assumption isn't
+actually supported by the data, and the project's premise needed
+rethinking before sinking more time into metrics that assume it's true.
+
+That comparison is aggregation logic (grouping many posters' output by
+decade), which is out of scope for this repo on purpose — see the Scope
+note in the README — so it isn't something `01_color_metrics.py` computes
+or that lives here. See docs/RESULTS.md for what the real 63,127-poster
+corpus found, kept here as the historical context for why this category
+was built first, not as a description of anything in `scripts/`.

@@ -1,11 +1,18 @@
 # Results
 
+These are real findings from the project, kept here as context for why
+the color-metrics category exists and was built first — not a description
+of anything computed by `scripts/`. Aggregating per-poster output into
+decade-level trends and a go/no-go verdict is explicitly out of scope for
+this repo (see the README's Scope note); that logic lives outside it.
+
 ## The real checkpoint: full 63,127-poster corpus
 
-This is the actual output of `02_aggregate_and_checkpoint.py` run against
-`data/posters.csv` from the real project — the full color-analysis result
-for every horror poster in the corpus at that point, not the 99-poster
-sample checked into this repo.
+The full color-analysis result for every horror poster in the corpus at
+that point (`data/posters.csv` from the real project), aggregated by
+decade and compared against the go/no-go threshold the project actually
+used: is the pre-1970 vs. 1970-2009 mean-brightness gap bigger than 3 L*
+points (CIELAB lightness, 0-100 scale)?
 
 ```
         brightness  red_share  dark_share
@@ -29,9 +36,7 @@ Pre-1970 mean brightness: 44.8 | 1970-2009 mean brightness: 35.0 | gap: 9.8
 -> CONTINUE -- the curve exists
 ```
 
-A 9.8-point mean-L\*-brightness gap (roughly triple the script's own >3
-threshold for "the gap is real, not noise") between pre-1970 and
-1970-2009 posters — well above the CONTINUE threshold. The trend is also
+A 9.8-point gap — roughly triple the >3 threshold. The trend is also
 monotonic decade-over-decade from the 1950s peak (46.8) onward, not just a
 before/after step, and `red_share` and `dark_share` move the same
 direction over the same span (blood-red content roughly doubling from the
@@ -53,7 +58,8 @@ same corpus, with color metrics computed by the actual production
 methodology (this repo's `01_color_metrics.py` was verified to reproduce
 these exact values, live, before being checked in — brightness/saturation/
 hue-band values matched to within floating-point noise, palettes matched
-to within 1-2 hex digits per channel).
+to within 1-2 hex digits per channel). The same decade-level aggregation
+as above, applied to just this sample:
 
 ```
         brightness  red_share  dark_share
@@ -78,27 +84,27 @@ At only 99 posters the per-decade means are noisier (9 posters per decade
 is not a lot — note the 1970s and 2000s decades bucking the overall trend
 here, which washes out at full-corpus scale), so the gap is smaller and
 noisier than the full-corpus result, but the verdict direction still
-agrees. This is expected and is a useful sanity check in itself: a small
-honest sample should show the same *direction* as the full run with more
-noise, not a contradictory result — if it ever doesn't, that's a signal
-something in the sampling or the metric itself is broken, not just noisy.
+agrees. This is a useful sanity check in itself: a small honest sample
+should show the same *direction* as the full run with more noise, not a
+contradictory result — if it ever doesn't, that's a signal something in
+the sampling or the metric itself is broken, not just noisy.
 
 ## Genre-agnostic, verified
 
-Neither `01_color_metrics.py` nor `02_aggregate_and_checkpoint.py` has any
-horror-specific logic — pixel color doesn't know what genre its poster
-belongs to. Verified live (no code changes) against a real, pure-sci-fi
-sample (20 posters, `sources == "community_scifi"` in the master dataset,
-none horror-tagged): brightness/saturation/hue-band values matched the
-already-computed reference to the same floating-point-noise tolerance as
-the horror sample above (max abs diff 0.20 on brightness, 0-100 scale).
+`01_color_metrics.py` has no horror-specific logic — pixel color doesn't
+know what genre its poster belongs to. Verified live (no code changes)
+against a real, pure-sci-fi sample (20 posters, `sources ==
+"community_scifi"` in the master dataset, none horror-tagged):
+brightness/saturation/hue-band values matched the already-computed
+reference to the same floating-point-noise tolerance as the horror sample
+above (max abs diff 0.20 on brightness, 0-100 scale).
 
-That run also surfaced a real edge case worth documenting: the sample had
-zero posters before 1970 (unsurprising — sci-fi as a poster-heavy genre on
-TMDB skews modern), so the pre-1970-vs-1970-2009 checkpoint had nothing to
-compare. `compute_checkpoint()` reports this explicitly (`n_pre70: 0`)
-instead of silently computing a `nan` gap — the 1970 threshold is tied to
-horror's own historical narrative, not a universal color-analysis
-constant, so a sample that can't support that specific comparison is an
-expected outcome, not a bug in the color methodology itself.
-
+That same test also surfaced a real edge case in the (out-of-scope-here)
+aggregation step this data eventually feeds: the sci-fi sample had zero
+posters before 1970 (unsurprising — sci-fi as a poster-heavy genre on TMDB
+skews modern), so the pre-1970-vs-1970-2009 comparison above had nothing
+to compare for that sample. Worth knowing for whoever builds the
+aggregation/front-end layer: the 1970 threshold is tied to horror's own
+historical narrative, not a universal color-analysis constant, so a
+sample that can't support that specific comparison is an expected
+outcome, not a bug in the underlying per-poster color metrics.

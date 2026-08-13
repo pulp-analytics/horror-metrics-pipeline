@@ -9,8 +9,9 @@ k-means (k=5) to get a dominant palette that isn't dominated by large flat
 backgrounds -- a plain unweighted k-means tends to just return shades of
 whatever color fills the most pixels (often a dark background), not the
 colors a human would actually call "the palette." Also computes six
-hue-family shares (red/warm/green/blue/purple/dark-or-grey) that feed the
-"Color River" aggregate chart in 02_aggregate_and_checkpoint.py.
+hue-family shares (red/warm/green/blue/purple/dark-or-grey) that a
+downstream aggregation step (out of scope for this repo -- see the
+README) turns into the "Color River" chart.
 
   python3 01_color_metrics.py --in data/sample_input/sample_100_posters.csv
 
