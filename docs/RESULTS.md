@@ -182,6 +182,42 @@ The full 99-poster `data/sample_output/clip_embeddings.npz` was generated
 live for this repo (not copied from the private project) — `06`-`09` in
 this repo's own sample commands read directly from it.
 
+### Cross-genre sanity check: does census/fear_axis/genre_classifier make sense on non-horror posters?
+
+A live check against 18 real, pure non-horror posters (6 each of
+sci-fi/thriller/mystery, `sources` column in `data/master_dataset.csv`
+equal to exactly one of `community_scifi`/`community_thriller`/
+`community_mystery`, no horror overlap) — not whether the scripts run
+without erroring, but whether the *output is a meaningful answer* for a
+poster outside the corpus these taxonomies/prompts were built against:
+
+- **Census (`06`)**: "uncertain" or "none" dominates in all three genres
+  (mystery 5/6, sci-fi 4/6, thriller 5/6) — the taxonomy correctly
+  reports "no creature detected" rather than forcing a monster label onto
+  a poster that doesn't have one. The few non-"none" hits are individually
+  plausible (*Time Demon* → demon, *The Running Man* → masked_killer),
+  not a systematic false-positive pattern. Reads as evidence the
+  taxonomy generalizes safely to genres it was never tested on in
+  production — see the applicability caveat in docs/METHODOLOGY.md.
+- **Fear axis (`07`)**: mean axis by true genre was mystery −0.0071,
+  sci-fi −0.0061, thriller −0.0023 — all slightly negative (calm-leaning),
+  not saturated toward "dread" despite some prompt text mentioning
+  "horror movie poster." Consistent with the real project's own
+  cross-genre validation design (see docs/METHODOLOGY.md) rather than
+  contradicting it.
+- **Genre classifier (`09`)**: a real, notable finding — 7 of 18 (38.9%)
+  non-horror posters were predicted "horror," above the ~25% baseline
+  four roughly-even classes would suggest, and sci-fi specifically was
+  mispredicted as horror in 4 of 6 cases (67%): *Time Demon*, *The
+  Running Man*, *Déchu*, *Eureka!* all scored closer to the horror
+  prototype than their own genre's. Plausible cause: the horror prompt
+  ensemble ("scary and menacing imagery... blood, monsters, or a masked
+  killer") captures dark/tense visual tone as much as horror-specific
+  content, and that tone overlaps with moody sci-fi and thriller
+  artwork. A real limitation of `09`/`13`'s genre classifier worth
+  knowing before trusting its `agree` column across genres, not a bug
+  in this port -- the same prompts the real project used.
+
 ## SigLIP semantic embeddings
 
 Same 5-poster live check as CLIP above, against `data/master_dataset.csv`'s

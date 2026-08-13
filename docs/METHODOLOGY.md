@@ -221,6 +221,37 @@ call in all 5 cases. Same likely cause as perceptual quality: the exact
 original poster bytes and/or exact library versions aren't reproducible
 months later. See docs/RESULTS.md for the specific numbers.
 
+### Genre applicability: what's real methodology vs. this repo's own judgment
+
+Two different situations here, worth being precise about:
+
+- **`07_clip_fear_axis.py`'s cross-genre use is real, not a guess.** The
+  private pipeline's `clip_fear_axis.py` (and `siglip_fear_axis.py`)
+  deliberately run the dread↔calm axis over all four corpora the real
+  project had (horror, scifi, thriller, mystery) — `--genre all` is
+  literally the script's default, backed by a `GENRE_FILES` dict mapping
+  each genre to its own embeddings/metadata files, and the script's own
+  final output is `df.groupby("genre")["axis"].agg(["mean","std","count"])`
+  printed to the console. That's a deliberate validation check baked into
+  the real methodology, not scope creep: does the dread axis actually
+  score horror posters higher than other genres, on average, as a sanity
+  check that the axis measures what it claims to? So `07`/`12` in this
+  repo are faithfully genre-general, matching how the real project used
+  them — not restricted to horror input.
+- **`06_clip_census.py`'s creature taxonomy was never run cross-genre in
+  production.** The real `clip_census.py` has no `--genre` flag and no
+  `GENRE_FILES` equivalent — it only ever reads `data/clip_embeddings.npz`
+  (the horror corpus). Several taxonomy labels (`alien`, `giant_monster`)
+  are conceptually just as relevant to sci-fi posters, but that's this
+  repo's own judgment about where the taxonomy plausibly generalizes, not
+  a reproduced result — the real project simply never tested it there.
+  Treat `06`/`13`'s census as verified-faithful for horror, and
+  plausible-but-unverified for sci-fi; mystery/thriller posters mostly
+  don't contain the kind of creature imagery this taxonomy was built to
+  detect, so "none"/"uncertain" dominating there (see the cross-genre
+  check in docs/RESULTS.md) is an expected, correct outcome, not a
+  sign the script needs a different taxonomy for those genres.
+
 ## SigLIP semantic embeddings
 
 Three scripts, the SigLIP counterpart to the CLIP category above — same
@@ -262,6 +293,20 @@ aggregates by decade — both are corpus-relative, out of scope for this
 repo (see the README's Scope note). The real `siglip_fear_axis.py` and
 `siglip_reanalysis.py` scripts compute both; ported here through the
 continuous per-poster `axis` score only, same as the CLIP versions.
+
+### Genre applicability
+
+Same split as CLIP's `07`/`06` (see that section above): the real
+`siglip_fear_axis.py` also has its own `GENRE_FILES`-equivalent
+`load_meta()` pulling in `posters.csv`/`posters_scifi.csv`/
+`posters_thriller.csv`/`posters_mystery.csv` and ends with `print("\n===
+por genero (SigLIP) ===")` grouping the axis by genre — a deliberate
+cross-genre validation check in the real methodology, same as the CLIP
+version, so `12_siglip_fear_axis.py` here is genre-general by design too.
+`13_siglip_reanalysis.py`'s census portion, on the other hand, shares
+`06`'s taxonomy verbatim and was never run against sci-fi/thriller/
+mystery embeddings in production either — same "verified for horror,
+plausible-but-unverified for sci-fi" caveat applies.
 
 ### Reproduction: tighter label agreement than CLIP, similar axis-score gap
 
