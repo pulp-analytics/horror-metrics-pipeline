@@ -255,3 +255,59 @@ QA sample, not these same 99 posters.
 The full 99-poster `data/sample_output/siglip_embeddings.npz` was
 generated live for this repo (not copied from the private project) —
 `12` and `13` read it directly.
+
+## Faces
+
+`14_face_detect.py`'s `--validate` mode (7 hand-verified posters, real
+expected face counts) run live:
+
+```
+title                                          expected  detected   boxes
+Resident Evil: Welcome to Raccoon City                4         3 OK
+Scream                                                 6         1 FAIL
+Get Out                                                1         1 OK
+Psycho                                                 3         2 OK
+The Exorcist                                           1         0 OK
+Us                                                      1         1 OK
+Halloween                                              0         0 OK
+
+VALIDATION: 6/7 within tolerance
+```
+
+*Scream* (1996) is a real, known YuNet limitation on that specific
+poster's composition (detected 1 of an expected 6±1 tolerance) — not
+something introduced by this port; the real project's own validation set
+carries the same tolerance bands for exactly this reason.
+
+Reproduction against `data/master_dataset.csv`'s real `faces_*` columns,
+for the subset of this repo's 99-poster sample that has that data (37 of
+99 — the real project hadn't finished running face detection against the
+full corpus at export time):
+
+| metric | scale | result |
+|---|---|---|
+| `n_faces` | integer count | exact match, 37/37 |
+| `face_area` | 0-1 | max abs diff 0.034 |
+
+The tightest reproduction in this repo after color — expected, since
+YuNet is a deterministic CV model (not a large pretrained transformer
+sensitive to library-version drift the way CLIP/SigLIP/pyiqa are).
+
+`15_face_expression.py` against the real historical
+`data/qa/face_expression.csv` (matched on `id`+`face_idx`, 159 of 160
+live-detected faces found in the historical file):
+
+| metric | result |
+|---|---|
+| label exact match | 114/159 (71.7%) |
+| score diff, agreeing labels | max 0.353, mean 0.046 |
+| disagreements near the 0.35 confidence threshold (both scores < 0.45) | 40/45 (89%) |
+
+Lower agreement than the whole-poster CLIP scripts (census, fear_axis,
+etc.), but the *shape* of the disagreement explains why: face crops are a
+much smaller, lower-resolution image region than a whole poster, so the
+same "poster bytes / library versions aren't reproducible months later"
+gap this repo's CLIP scripts already show gets amplified here — the large
+majority of mismatches are cases where both runs were already
+low-confidence, not one run being confidently right and the other
+confidently wrong.

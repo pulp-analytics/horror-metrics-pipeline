@@ -15,5 +15,8 @@ huggingface_hub>=0.20
 # SigLIP category (11-13) -- google/siglip-base-patch16-224 via transformers
 transformers>=4.40
 
+# faces category (14-15) -- YuNet face detection
+opencv-python>=4.8
+
 # only needed if you pass --posters-s3-bucket (optional, see utils/posters.py)
 # boto3>=1.34

@@ -3,7 +3,8 @@
 Python pipeline for computing per-poster metrics at scale: color palettes,
 CLIP/SigLIP semantic embeddings (fear axis, monster census, typography,
 medium/painted-vs-photo classification), perceptual quality scores
-(pyiqa, NIMA, LAION aesthetic), and geometric composition metrics.
+(pyiqa, NIMA, LAION aesthetic), face detection + expression, and
+geometric composition metrics.
 
 Part of the [Pulp Analytics](https://github.com/pulp-analytics) horror poster
 analysis project ("The Anatomy of Fear").
@@ -15,10 +16,10 @@ register shares) is a presentation concern for whatever consumes this
 data downstream, not something computed here — that logic will live in a
 separate front-end/presentation repo once one exists, not in this one.
 
-**Status: color, perceptual quality, CLIP semantic embeddings, and SigLIP
-semantic embeddings are built and documented (below). Geometric
-composition is a real, already-run part of the project but not yet
-ported to this public repo.**
+**Status: color, perceptual quality, CLIP semantic embeddings, SigLIP
+semantic embeddings, and faces are built and documented (below).
+Geometric composition is a real, already-run part of the project but not
+yet ported to this public repo.**
 
 ## Quickstart
 
@@ -37,17 +38,21 @@ python3 scripts/10_clip_medium.py             # CLIP: painted-vs-photographic
 python3 scripts/11_siglip_embed.py            # SigLIP: build its own embedding cache
 python3 scripts/12_siglip_fear_axis.py        # SigLIP: dread<->calm axis
 python3 scripts/13_siglip_reanalysis.py       # SigLIP: census + typography + genre
+python3 scripts/14_face_detect.py             # faces: YuNet detection (local, no AWS)
+python3 scripts/15_face_expression.py         # faces: CLIP zero-shot expression per face
 python3 -m pytest tests/ -v
 ```
 
 No API key or AWS needed anywhere in this repo — posters come from TMDB's
-public image CDN. All nine download-capable scripts (everything except
-`06`-`09` and `12`-`13`, which read `05`'s or `11`'s cache) share one
-poster cache (`data/posters_cache/`, see `utils/posters.py`): whichever
-script runs first downloads a given poster, the others reuse that file.
-That cache can optionally check S3 first (`--posters-s3-bucket`, matching
-the real project's own storage pattern) before falling back to TMDB —
-entirely optional, off by default.
+public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
+detector) is a small local ONNX file, not a cloud service. All eleven
+download-capable scripts (everything except `06`-`09`, `12`-`13`, and
+`15`, which read `05`'s/`11`'s embedding cache or `14`'s face boxes)
+share one poster cache (`data/posters_cache/`, see `utils/posters.py`):
+whichever script runs first downloads a given poster, the others reuse
+that file. That cache can optionally check S3 first (`--posters-s3-bucket`,
+matching the real project's own storage pattern) before falling back to
+TMDB — entirely optional, off by default.
 
 Not tied to horror specifically: `01_color_metrics.py` has no
 genre-specific logic and was verified live against a real, non-horror
@@ -73,6 +78,8 @@ scripts/
   11_siglip_embed.py           SigLIP embedding cache -- 12/13 read this, not 05's
   12_siglip_fear_axis.py       SigLIP version of 07, same axis/prompts
   13_siglip_reanalysis.py      SigLIP version of 06+08+09, one shared model load
+  14_face_detect.py            YuNet face detection (local ONNX, not Rekognition)
+  15_face_expression.py        CLIP zero-shot expression per detected face -- reads 14's output
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
@@ -96,6 +103,7 @@ tests/
   test_clip_backbone.py     softmax/cosine-similarity math underlying every
                              CLIP script, on synthetic embeddings
   test_siglip_backbone.py   same math, SigLIP's side, on synthetic embeddings
+  test_face_expression.py   pure crop/box-parsing geometry for 15, on synthetic images
   test_posters.py           shared poster-cache logic -- confirms the local-
                              cache-hit path never touches the network, and
                              that no AWS import happens when S3 isn't configured

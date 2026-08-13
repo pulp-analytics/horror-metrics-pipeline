@@ -319,3 +319,64 @@ reproducible than CLIP" from 5 samples; read as "no evidence of a
 SigLIP-specific reproduction problem," consistent with the same
 likely cause discussed above (poster bytes/library versions drifting
 over months, not a bug in either port).
+
+## Faces
+
+Two scripts, one detection step feeding one classification step:
+
+- **`14_face_detect.py`** — YuNet (`cv2.FaceDetectorYN`), a compact
+  (230KB) ONNX face detector run at a fixed 320px detection width.
+  Auto-downloads the model from its real public source (opencv_zoo) on
+  first run. Outputs box coordinates (normalized to poster width/height,
+  largest face first) plus a face count and mean face-area share per
+  poster.
+- **`15_face_expression.py`** — crops each face `14` found (25% padding)
+  and classifies it zero-shot against 8 fear-oriented expression
+  prototypes (terrified/screaming/shocked/menacing/angry/sad/in_pain/calm),
+  same prompt-ensemble + cosine-softmax method as `06_clip_census.py`,
+  applied to face crops instead of whole posters. One output row per face,
+  not per poster.
+
+### Not Rekognition, and not AWS at all
+
+Worth being explicit about, since a face-detection step is exactly the
+kind of thing that could plausibly be AWS-backed: the real project's face
+detector is YuNet, a local OpenCV DNN model, not Amazon Rekognition. It
+replaced an earlier Haar cascade specifically because Haar undercounted
+badly on stylized poster artwork — the real project's own worked example:
+*Resident Evil: Welcome to Raccoon City* (2021) scored 0 of 6 faces with
+Haar. (The private pipeline separately has real Rekognition face data —
+`rek_n_faces` in the master dataset — but `14`/`15` don't use it; same
+"local, deterministic, free" preference already explained for color's
+`01_color_metrics.py` over Rekognition's `IMAGE_PROPERTIES`.) So this
+category needs no AWS credentials, no API key, same as everything else in
+this repo.
+
+### What this repo does NOT compute
+
+`14`'s real counterpart (`faces_v2.py`) also aggregates face-share by
+decade (`faces_v2_decade.json`) — out of scope here for the usual reason
+(corpus-relative, see the README's Scope note). `14` outputs only the
+raw per-poster detection.
+
+### Reproduction
+
+Live-verified against the subset of `data/master_dataset.csv`'s real
+`faces_*` columns that have data for this repo's 99-poster sample (37 of
+99 — face detection wasn't run against the full corpus at export time,
+a real data-coverage gap, not a sampling bug): `n_faces` matched exactly
+for all 37, `face_area` within 0.034 (0-1 scale). `14`'s own
+`--validate` mode (7 hand-verified posters, unchanged from the real
+script) passed 6 of 7 within tolerance — *Scream* (1996) detected 1 face
+against an expected 6±1, a real, known YuNet limitation on that
+particular poster's composition, not a bug introduced by this port.
+
+`15`'s expression labels matched the real historical output
+(`data/qa/face_expression.csv`) on 114 of 159 faces (71.7%) — lower
+agreement than the whole-poster CLIP scripts, but consistent with *why*:
+89% of the disagreements (40 of 45) were cases where both the live and
+historical score sat under 0.45, i.e. both runs were already
+low-confidence on a tiny, low-resolution face crop. Same likely root
+cause as every other CLIP-based reproduction gap in this repo (poster
+bytes/library versions drifting over months), amplified here because face
+crops are a much smaller, noisier image region than a whole poster.

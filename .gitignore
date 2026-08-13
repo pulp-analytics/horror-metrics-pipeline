@@ -2,6 +2,11 @@
 # data, just a scratch cache of downloaded images, rebuilt on demand
 data/posters_cache/
 
+# auto-downloaded YuNet face-detection model (see 14_face_detect.py) --
+# same reasoning as not committing CLIP/SigLIP/LAION weights: models are
+# fetched on demand, not stored in the repo
+data/models/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
