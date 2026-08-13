@@ -220,3 +220,57 @@ differences (up to ~0.08) though it agreed on the discrete painted/photo
 call in all 5 cases. Same likely cause as perceptual quality: the exact
 original poster bytes and/or exact library versions aren't reproducible
 months later. See docs/RESULTS.md for the specific numbers.
+
+## SigLIP semantic embeddings
+
+Three scripts, the SigLIP counterpart to the CLIP category above — same
+zero-shot method (prompt-ensemble text prototypes, cosine similarity),
+same taxonomies and prompts where the real project reused them verbatim,
+just through `google/siglip-base-patch16-224` (768-d) instead of CLIP
+ViT-B/32 (512-d) as the backbone:
+
+- **`11_siglip_embed.py`** — embeds every poster with SigLIP once, caches
+  the result. Not interchangeable with `05`'s CLIP cache (different
+  embedding space and dimensionality) — `12` and `13` read this one.
+- **`12_siglip_fear_axis.py`** — the same dread↔calm continuous axis as
+  `07_clip_fear_axis.py`, same prompt wording, over SigLIP embeddings.
+- **`13_siglip_reanalysis.py`** — census + typography axis + genre
+  classifier, all three in one script sharing a single SigLIP model load
+  (the real project's own `siglip_reanalysis.py` combines them for
+  exactly this reason: loading the model three times separately would
+  triple a real, non-trivial cost). Same taxonomy/prompts as `06`, `08`,
+  and `09` respectively.
+
+### Why SigLIP at all, given CLIP already works
+
+Not a replacement — a second, independently-trained model run over the
+same zero-shot method, checked in `RESULTS.md`'s "SigLIP semantic
+embeddings" section against real numbers from both models. SigLIP's
+sigmoid loss gives measurably better zero-shot accuracy than plain CLIP
+on public benchmarks (Google's own reported numbers: ~85% ImageNet
+zero-shot for SigLIP2 vs. ~68-75% typical for CLIP ViT-B/32), which is
+the actual reason the real project reran its zero-shot analyses on it —
+worth checking whether a stronger general-purpose backbone gives a
+cleaner signal on this specific task, not swapping one for the other on
+faith.
+
+### What this repo does NOT compute for the SigLIP axes
+
+Same reasoning as CLIP's `07`/`08`: neither `12` nor `13`'s typography
+axis bins posters into named registers by quantile, and neither
+aggregates by decade — both are corpus-relative, out of scope for this
+repo (see the README's Scope note). The real `siglip_fear_axis.py` and
+`siglip_reanalysis.py` scripts compute both; ported here through the
+continuous per-poster `axis` score only, same as the CLIP versions.
+
+### Reproduction: tighter label agreement than CLIP, similar axis-score gap
+
+A live check against 5 posters (see docs/RESULTS.md for the exact table)
+found `fear_axis` and `typography_axis` diffs in a similar range to
+CLIP's versions (roughly 0.0001-0.013), and — unlike CLIP census's 1/5
+label flip — all 5 census labels and all 5 genre predictions matched
+their historical reference exactly. Not read as "SigLIP is more
+reproducible than CLIP" from 5 samples; read as "no evidence of a
+SigLIP-specific reproduction problem," consistent with the same
+likely cause discussed above (poster bytes/library versions drifting
+over months, not a bug in either port).

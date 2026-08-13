@@ -181,3 +181,41 @@ later, not a bug in this port.
 The full 99-poster `data/sample_output/clip_embeddings.npz` was generated
 live for this repo (not copied from the private project) — `06`-`09` in
 this repo's own sample commands read directly from it.
+
+## SigLIP semantic embeddings
+
+Same 5-poster live check as CLIP above, against `data/master_dataset.csv`'s
+`siglip_fear_axis_axis`, `siglip_typography_axis`, `siglip_census_label`,
+and `siglip_genre_pred_genre`:
+
+| id | fear_axis diff | typography_axis diff | census label | genre |
+|---|---|---|---|---|
+| 2969 | 0.00009 | 0.00015 | witch = witch | horror = horror |
+| 14594 | 0.00547 | 0.01017 | none = none | mystery = mystery |
+| 19131 | 0.00909 | 0.00013 | uncertain = uncertain | horror = horror |
+| 19169 | 0.01324 | 0.00431 | uncertain = uncertain | horror = horror |
+| 19971 | 0.00206 | 0.00159 | witch = witch | mystery = mystery |
+
+Both continuous axes stay in roughly the same tightness band as CLIP's
+versions (max abs diff 0.0132 here vs. CLIP's 0.0031 — CLIP's numeric
+match happened to be tighter on this particular 5-poster sample, not a
+general claim about which model reproduces better). The discrete outputs
+matched exactly in all 5 cases: 5/5 census labels and 5/5 genre
+predictions agree with the historical reference, where CLIP's census
+flipped 1/5. Same likely root cause as CLIP's gap (original poster
+bytes/library versions not reproducible months later), not a
+SigLIP-specific issue.
+
+`13_siglip_reanalysis.py`'s genre classifier also confirmed live:
+48.5% agreement between SigLIP's zero-shot pred_genre and each poster's
+actual catalog genre (`siglip_genre_true_genre` from the master dataset,
+merged in for this one run since the checked-in `sample_100_posters.csv`
+has no genre column of its own — see the script's own `--true-genre-col`
+flag) across the same 99-poster sample. Not directly compared against
+CLIP's genre-agreement rate here since CLIP's `data/sample_output/
+genre_classifier.csv` was built from a different, larger multi-genre real
+QA sample, not these same 99 posters.
+
+The full 99-poster `data/sample_output/siglip_embeddings.npz` was
+generated live for this repo (not copied from the private project) —
+`12` and `13` read it directly.
