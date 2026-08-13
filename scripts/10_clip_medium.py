@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Painted/illustrated vs. photographic poster classification, via CLIP
-zero-shot. Dates the death of the illustrated horror poster.
+zero-shot -- a style axis with no genre logic in the method itself; the
+real project used it to date when illustrated poster art gave way to
+photography.
 
 Unlike 06/07/08/09, this does NOT read 05_clip_embed.py's cache -- it
 embeds posters fresh with its own preprocessing pipeline. That's how the
