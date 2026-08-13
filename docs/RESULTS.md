@@ -1,12 +1,14 @@
 # Results
 
+## Color
+
 These are real findings from the project, kept here as context for why
 the color-metrics category exists and was built first — not a description
 of anything computed by `scripts/`. Aggregating per-poster output into
 decade-level trends and a go/no-go verdict is explicitly out of scope for
 this repo (see the README's Scope note); that logic lives outside it.
 
-## The real checkpoint: full 63,127-poster corpus
+### The real checkpoint: full 63,127-poster corpus
 
 The full color-analysis result for every horror poster in the corpus at
 that point (`data/posters.csv` from the real project), aggregated by
@@ -50,7 +52,7 @@ data-quality artifact in the upstream TidyTuesday horror-movies dataset,
 excluded from the numbers above since it falls outside any real decade
 range.)
 
-## Sample run (99 posters, this repo's checked-in sample)
+### Sample run (99 posters, this repo's checked-in sample)
 
 `data/sample_output/color_metrics.csv` is a real, stratified-by-decade
 sample of 99 posters (9 per decade, 1920s-2020s) drawn directly from the
@@ -89,7 +91,7 @@ should show the same *direction* as the full run with more noise, not a
 contradictory result — if it ever doesn't, that's a signal something in
 the sampling or the metric itself is broken, not just noisy.
 
-## Genre-agnostic, verified
+### Genre-agnostic, verified
 
 `01_color_metrics.py` has no horror-specific logic — pixel color doesn't
 know what genre its poster belongs to. Verified live (no code changes)
@@ -108,3 +110,43 @@ aggregation/front-end layer: the 1970 threshold is tied to horror's own
 historical narrative, not a universal color-analysis constant, so a
 sample that can't support that specific comparison is an expected
 outcome, not a bug in the underlying per-poster color metrics.
+
+## Perceptual quality
+
+`data/sample_output/{iqa_multi_score,nima_score,laion_aesthetic_score}.csv`
+are real, already-computed reference values for the same 99-poster sample
+as color, pulled from the same master dataset. Unlike color, these are
+**not** verified to reproduce those exact historical values on a fresh
+run — see docs/METHODOLOGY.md's "These are model-based, not deterministic
+math" section for why, but the short version: a live check against a
+5-poster subset showed meaningfully larger deviations than color's
+sub-0.2 noise:
+
+| metric | scale | max abs diff observed |
+|---|---|---|
+| `clipiqa` | 0-1 | 0.25 |
+| `musiq` | ~0-100 | 15.5 |
+| `brisque` | ~0-100 (lower=better) | 25.6 |
+| `nima_score` | ~1-10 | 0.16 |
+
+What *was* confirmed live: each script is internally deterministic
+(re-running `02_iqa_multi_score.py` against the same cached poster file
+twice produced byte-identical output both times), all three scripts run
+correctly end to end against real TMDB-downloaded posters with zero
+errors, and the values produced are plausible and within each metric's
+expected range — this is a faithful, working port of the real
+methodology. What's *not* established is that a value computed today by
+these scripts will numerically match a specific historical value in
+`data/sample_output/` to the same tightness color achieved — the most
+likely explanation is that the exact poster image bytes originally scored
+aren't available anymore to compare against directly (the private
+project's local poster cache predates this check), which matters more for
+neural quality metrics sensitive to compression/resolution than for color
+math that downsamples to 96×144 regardless of input size.
+
+`04_laion_aesthetic_score.py` was verified live end to end too (correct
+box/JSON output, no errors) but wasn't included in the table above since
+the ViT-L/14 model download (~1.7GB) took long enough in this environment
+that the numeric comparison wasn't re-run after the shared-cache
+refactor — nothing about that refactor changes the scoring logic itself,
+so the same caveat applies.

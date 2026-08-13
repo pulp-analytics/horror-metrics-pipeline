@@ -21,6 +21,13 @@ fetch + local CPU computation, not a rate-limited API call -- unlike
 horror-corpus-validation's AWS-service gates, there's no per-request quota
 to pace against here.
 
+Shares its poster cache (--posters-dir, optionally backed by S3 -- see
+utils/posters.py) with 02_iqa_multi_score.py, 03_nima_score.py, and
+04_laion_aesthetic_score.py: whichever of these scripts runs first
+downloads a given poster, every other one reuses that same file instead
+of fetching it again. Pure I/O sharing, not a dependency between
+categories -- each script still computes its own metrics independently.
+
 Shardable: --shard-index/--shard-count split --in's rows by position, for
 running N copies of this script in parallel (e.g. an AWS Batch array job,
 same convention as the sibling horror-corpus-validation repo).
@@ -43,11 +50,11 @@ from sklearn.cluster import KMeans
 
 sys.path.insert(0, str(Path(__file__).parent))
 from utils.logging_setup import get_logger
+from utils.posters import add_poster_source_args, fetch_poster_file
 from utils.resumable import load_done_ids, open_for_append, shard_rows
 
 log = get_logger("color_metrics")
 
-IMG_BASE = "https://image.tmdb.org/t/p/w342"   # w342 is plenty for color work
 ANALYSIS_SIZE = (96, 144)                       # downsample before clustering
 K = 5                                            # palette size
 FIELDS = ["id", "title", "year", "brightness", "dark_share", "saturation", "red_share",
@@ -147,20 +154,11 @@ def analyze_poster(img_bytes: bytes, rng: np.random.Generator) -> dict:
                 palette=palette, palette_share=pal_share, **bands)
 
 
-def fetch_poster(session: requests.Session, poster_path: str) -> bytes | None:
-    try:
-        resp = session.get(f"{IMG_BASE}{poster_path}", timeout=30)
-        if resp.status_code == 200 and resp.content:
-            return resp.content
-    except Exception:
-        pass
-    return None
-
-
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--in", dest="in_path", default="data/sample_input/sample_100_posters.csv")
     ap.add_argument("--out", default="data/sample_output/color_metrics.csv")
+    add_poster_source_args(ap)
     ap.add_argument("--workers", type=int, default=12)
     ap.add_argument("--shard-index", type=int, default=0)
     ap.add_argument("--shard-count", type=int, default=1, help="split --in across N parallel shards (default 1: no sharding)")
@@ -176,34 +174,42 @@ def main():
     if done:
         log.info(f"resuming: {len(done)} already done, {len(todo)} remaining")
 
+    posters_dir = Path(args.posters_dir)
     rng = np.random.default_rng(42)
     session = requests.Session()
     n_ok = n_failed = 0
 
     f, w = open_for_append(out_path, FIELDS)
     try:
+        # concurrent fetch-to-cache first (this is the CDN-bound phase);
+        # analysis itself is CPU-bound and runs sequentially below
         with ThreadPoolExecutor(max_workers=args.workers) as ex:
-            futs = {ex.submit(fetch_poster, session, row["poster_path"]): row for row in todo}
+            poster_files = {row["id"]: posters_dir / f"{row['id']}.jpg" for row in todo}
+            futs = {ex.submit(fetch_poster_file, session, row["poster_path"], poster_files[row["id"]],
+                               args.posters_s3_bucket, args.posters_s3_prefix): row for row in todo}
+            fetched: dict[str, bool] = {}
             for i, fut in enumerate(as_completed(futs), 1):
                 row = futs[fut]
-                content = fut.result()
-                if content is None:
-                    n_failed += 1
-                    if i % 25 == 0:
-                        log.info(f"{i}/{len(todo)}")
-                    continue
-                try:
-                    m = analyze_poster(content, rng)
-                except Exception as e:
-                    log.info(f"  {row['id']}: analysis failed ({e})")
-                    n_failed += 1
-                    continue
-                m.update(id=row["id"], title=row.get("title", ""), year=row.get("year", ""),
-                         palette=json.dumps(m["palette"]), palette_share=json.dumps(m["palette_share"]))
-                w.writerow(m)
-                n_ok += 1
-                if i % 25 == 0:
-                    log.info(f"{i}/{len(todo)}")
+                fetched[row["id"]] = fut.result()
+                if i % 25 == 0 or i == len(todo):
+                    log.info(f"fetch {i}/{len(todo)}")
+
+        for i, row in enumerate(todo, 1):
+            if not fetched.get(row["id"]):
+                n_failed += 1
+                continue
+            try:
+                m = analyze_poster(poster_files[row["id"]].read_bytes(), rng)
+            except Exception as e:
+                log.info(f"  {row['id']}: analysis failed ({e})")
+                n_failed += 1
+                continue
+            m.update(id=row["id"], title=row.get("title", ""), year=row.get("year", ""),
+                     palette=json.dumps(m["palette"]), palette_share=json.dumps(m["palette_share"]))
+            w.writerow(m)
+            n_ok += 1
+            if i % 25 == 0 or i == len(todo):
+                log.info(f"analyze {i}/{len(todo)}")
     finally:
         f.close()
 
