@@ -1,4 +1,4 @@
-# horror-metrics-pipeline
+# poster-metrics-pipeline
 
 Python pipeline for computing per-poster metrics at scale: color palettes,
 CLIP/SigLIP semantic embeddings (fear axis, monster census, typography,
@@ -75,7 +75,7 @@ scripts/
   13_siglip_reanalysis.py      SigLIP version of 06+08+09, one shared model load
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
-                                      horror-corpus-validation repo
+                                      poster-corpus-validation repo
     posters.py                       shared TMDB/S3/local-disk poster cache
     clip_backbone.py                 shared CLIP model loading + text-prototype
                                       helper, used by 06/07/08/09

@@ -18,7 +18,7 @@ README) turns into the "Color River" chart.
 Resumable: re-running with the same --out skips ids already processed.
 Downloads run concurrently (--workers, default 12) since this is a CDN
 fetch + local CPU computation, not a rate-limited API call -- unlike
-horror-corpus-validation's AWS-service gates, there's no per-request quota
+poster-corpus-validation's AWS-service gates, there's no per-request quota
 to pace against here.
 
 Shares its poster cache (--posters-dir, optionally backed by S3 -- see
@@ -30,7 +30,7 @@ categories -- each script still computes its own metrics independently.
 
 Shardable: --shard-index/--shard-count split --in's rows by position, for
 running N copies of this script in parallel (e.g. an AWS Batch array job,
-same convention as the sibling horror-corpus-validation repo).
+same convention as the sibling poster-corpus-validation repo).
 """
 from __future__ import annotations
 

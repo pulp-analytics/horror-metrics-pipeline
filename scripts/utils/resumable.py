@@ -2,7 +2,7 @@
 (e.g. a previous run got interrupted), skip those and append the rest
 instead of starting over and re-downloading/re-analyzing posters already
 done. Same helper (and same shard_rows() convention) as the sibling
-horror-corpus-validation repo -- kept consistent on purpose."""
+poster-corpus-validation repo -- kept consistent on purpose."""
 from __future__ import annotations
 
 import csv
@@ -37,7 +37,7 @@ def shard_rows(rows: list[dict], shard_index: int, shard_count: int) -> list[dic
     """Deterministic partition of --in's rows by position, for running N
     copies of a script in parallel over disjoint slices of the same file
     (e.g. one per AWS Batch array job index -- see the sibling
-    horror-analysis-infrastructure repo). shard_count=1 (the default)
+    poster-analysis-infrastructure repo). shard_count=1 (the default)
     returns every row unchanged, so this is a no-op unless you opt in."""
     if shard_count <= 1:
         return rows
