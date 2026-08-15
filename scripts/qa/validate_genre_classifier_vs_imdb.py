@@ -106,8 +106,22 @@ def compute_genre_metrics(rows: list[dict]) -> dict:
     """Pure function (no I/O): rows are {pred_genre, imdb_genres} where
     imdb_genres is a set of IMDb genre strings. Returns containment
     precision per predicted class and strict recall per true class, plus
-    a full predicted-as confusion breakdown for each true class."""
-    scored = [r for r in rows if r["pred_genre"] in GENRE_MAP]
+    a full predicted-as confusion breakdown for each true class.
+
+    Rows where IMDb tags none of horror/sci-fi/thriller/mystery at all are
+    excluded from every count, not just flagged -- inspecting these by hand
+    (see the sibling poster-corpus-validation repo's ground-truth work for
+    the same judgment call re: "unjudgeable") showed they're a mix of
+    content CLIP was never going to get right regardless of model quality
+    (shorts, documentaries, animation) and older/obscure titles where
+    IMDb's own genre tagging looks incomplete (several "predicted mystery"
+    misses here are actually Crime/Drama/Film-Noir films that read as
+    mystery-adjacent on inspection) -- neither is evidence the classifier
+    is wrong, so forcing them into the denominator would blame the model
+    for gaps in the ground truth."""
+    valid = [r for r in rows if r["pred_genre"] in GENRE_MAP]
+    no_target_genre = [r for r in valid if not (r["imdb_genres"] & set(GENRE_MAP.values()))]
+    scored = [r for r in valid if r["imdb_genres"] & set(GENRE_MAP.values())]
 
     per_class_precision = {}
     for c in CLASSES:
@@ -131,12 +145,11 @@ def compute_genre_metrics(rows: list[dict]) -> dict:
             "predicted_as": breakdown,
         }
 
-    no_target_genre = sum(1 for r in scored if not (r["imdb_genres"] & set(GENRE_MAP.values())))
     overall_hits = sum(1 for r in scored if GENRE_MAP[r["pred_genre"]] in r["imdb_genres"])
 
     return {
         "n_scored": len(scored),
-        "n_no_target_genre": no_target_genre,
+        "n_no_target_genre": len(no_target_genre),
         "overall_containment_accuracy": overall_hits / len(scored) if scored else None,
         "precision": per_class_precision,
         "recall": per_class_recall,
@@ -149,8 +162,9 @@ def print_report(metrics: dict) -> None:
         log.info("nothing scored -- can't report metrics")
         return
 
-    print(f"\nScored: {n} posters ({metrics['n_no_target_genre']} where IMDb tags none of "
-          f"horror/sci-fi/thriller/mystery at all -- these can never be a hit)")
+    print(f"\nScored: {n} posters ({metrics['n_no_target_genre']} excluded -- IMDb tags none of "
+          f"horror/sci-fi/thriller/mystery for them at all, so they can't be attributed to the "
+          f"classifier being wrong)")
     acc = metrics["overall_containment_accuracy"]
     print(f"Overall containment accuracy: {acc*100:.1f}%\n")
 

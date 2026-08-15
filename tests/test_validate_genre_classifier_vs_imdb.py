@@ -61,16 +61,21 @@ def test_recall_is_strict_not_containment():
     assert m["recall"]["scifi"]["predicted_as"]["thriller"] == 1
 
 
-def test_no_target_genre_rows_counted_but_flagged():
+def test_no_target_genre_rows_excluded_from_every_count():
     # IMDb tags this film Drama/Comedy only -- none of our 4 classes.
-    # CLIP still had to guess one; it can never be a hit, but it's not
-    # excluded from n_scored either (unlike Bedrock's "unjudgeable",
-    # IMDb *did* give a real answer here -- it's just "none of the above")
-    rows = [row("horror", {"Drama", "Comedy"})]
+    # CLIP still had to guess one, but there's no way to tell if that
+    # guess was right or wrong from IMDb's data, so (after inspecting the
+    # real 52 such cases in the actual 200-poster sample -- mostly shorts/
+    # documentaries/animation and older titles with incomplete IMDb
+    # tagging) these are excluded entirely, the same way Bedrock's
+    # ground-truth review excludes "unjudgeable" rows rather than forcing
+    # them into the denominator as an automatic miss.
+    rows = [row("horror", {"Drama", "Comedy"}), row("mystery", {"Mystery"})]
     m = compute_genre_metrics(rows)
-    assert m["n_scored"] == 1
+    assert m["n_scored"] == 1  # only the real "mystery" row counts
     assert m["n_no_target_genre"] == 1
-    assert m["overall_containment_accuracy"] == 0.0
+    assert m["overall_containment_accuracy"] == 1.0  # not dragged down by the excluded row
+    assert m["precision"]["horror"]["n_predicted"] == 0  # the excluded row isn't in horror's denominator either
 
 
 def test_predicted_as_breakdown_sums_to_n_true():
