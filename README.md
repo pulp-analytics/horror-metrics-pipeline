@@ -98,6 +98,10 @@ data/
 docs/
   METHODOLOGY.md   what's computed and why, per category
   RESULTS.md        real findings, per category
+  MODELS.md         every model this repo loads, what it resolves to, and
+                     how tight the version pin is (SigLIP/LAION head by HF
+                     revision, YuNet by sha256, CLIP already pinned by
+                     open_clip itself)
 tests/
   test_color_metrics.py     pure-function tests for the color math
   test_clip_backbone.py     softmax/cosine-similarity math underlying every

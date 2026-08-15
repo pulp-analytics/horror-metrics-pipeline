@@ -22,12 +22,18 @@ import torch
 from transformers import AutoModel, AutoProcessor
 
 MODEL_ID = "google/siglip-base-patch16-224"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-14 via
+# curl https://huggingface.co/api/models/google/siglip-base-patch16-224
+# (the "sha" field). Without this, from_pretrained tracks that repo's
+# main branch -- fine today, but a silent drift risk if google ever
+# pushes a new commit to the same model_id later. See docs/MODELS.md.
+MODEL_REVISION = "7fd15f0689c79d79e38b1c2e2e2370a7bf2761ed"
 EMBED_DIM = 768
 
 
 def load_siglip(device: str = "cpu"):
-    model = AutoModel.from_pretrained(MODEL_ID).to(device).eval()
-    processor = AutoProcessor.from_pretrained(MODEL_ID)
+    model = AutoModel.from_pretrained(MODEL_ID, revision=MODEL_REVISION).to(device).eval()
+    processor = AutoProcessor.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
     return model, processor
 
 

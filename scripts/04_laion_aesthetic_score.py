@@ -60,9 +60,17 @@ class MLP(nn.Module):
         return self.layers(x)
 
 
+AESTHETIC_HEAD_REPO = "camenduru/improved-aesthetic-predictor"
+AESTHETIC_HEAD_FILE = "sac+logos+ava1-l14-linearMSE.pth"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-14 via
+# curl https://huggingface.co/api/models/camenduru/improved-aesthetic-predictor
+# (the "sha" field). See docs/MODELS.md.
+AESTHETIC_HEAD_REVISION = "7b2449be1264fcd9a1cf92e3d30dd29af989c836"
+
+
 def load_aesthetic_head(device):
-    path = hf_hub_download(repo_id="camenduru/improved-aesthetic-predictor",
-                            filename="sac+logos+ava1-l14-linearMSE.pth")
+    path = hf_hub_download(repo_id=AESTHETIC_HEAD_REPO, filename=AESTHETIC_HEAD_FILE,
+                            revision=AESTHETIC_HEAD_REVISION)
     m = MLP(768)
     sd = torch.load(path, map_location="cpu", weights_only=True)
     m.load_state_dict(sd)
