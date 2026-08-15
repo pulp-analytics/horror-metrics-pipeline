@@ -75,6 +75,13 @@ DEFAULT_IMDB_BASICS_PATH = "data/ground_truth/.imdb_cache/title.basics.tsv.gz"
 GENRE_MAP = {"horror": "Horror", "scifi": "Sci-Fi", "thriller": "Thriller", "mystery": "Mystery"}
 CLASSES = list(GENRE_MAP)
 
+# Matches the sibling private-pipeline QA script's own convention
+# (compare_tmdb_imdb_horror.py's STRICT_TYPES) -- shorts/videos/TV
+# episodes are a different comparison than feature-film posters, not
+# just "more data," so they're excluded by default rather than silently
+# folded in.
+STRICT_TITLE_TYPES = frozenset({"movie", "tvMovie"})
+
 
 def ensure_imdb_basics(path: Path) -> None:
     if path.exists():
@@ -85,20 +92,25 @@ def ensure_imdb_basics(path: Path) -> None:
     log.info("downloaded")
 
 
-def load_imdb_genres(basics_path: Path, wanted_tconsts: set[str]) -> dict[str, set[str]]:
-    """One streaming pass over title.basics.tsv.gz, keeping only genres for
-    the tconsts we actually need -- the file covers every IMDb title ever
-    (10M+ rows), not just ours."""
-    out: dict[str, set[str]] = {}
+def load_imdb_info(basics_path: Path, wanted_tconsts: set[str]) -> dict[str, dict]:
+    """One streaming pass over title.basics.tsv.gz, keeping only genres +
+    titleType for the tconsts we actually need -- the file covers every
+    IMDb title ever (10M+ rows), not just ours."""
+    out: dict[str, dict] = {}
     with gzip.open(basics_path, "rt", encoding="utf-8", errors="replace") as f:
         header = next(f).rstrip("\n").split("\t")
-        tt_i, g_i = header.index("tconst"), header.index("genres")
+        tt_i = header.index("tconst")
+        type_i = header.index("titleType")
+        g_i = header.index("genres")
         for line in f:
             parts = line.rstrip("\n").split("\t")
             tt = parts[tt_i]
             if tt in wanted_tconsts:
                 raw = parts[g_i]
-                out[tt] = set() if (not raw or raw == "\\N") else set(raw.split(","))
+                out[tt] = {
+                    "titleType": parts[type_i],
+                    "genres": set() if (not raw or raw == "\\N") else set(raw.split(",")),
+                }
     return out
 
 
@@ -190,6 +202,11 @@ def main():
     ap.add_argument("--out", default="data/ground_truth/genre_classifier_validate_results.csv")
     ap.add_argument("--imdb-basics", default=DEFAULT_IMDB_BASICS_PATH,
                      help="local path to IMDb's title.basics.tsv.gz -- auto-downloaded here if missing")
+    ap.add_argument("--include-shorts", action="store_true",
+                     help="include shorts/videos/TV episodes/etc, not just movie/tvMovie "
+                          "(default: movie/tvMovie only, matching the sibling private-pipeline "
+                          "QA script's own convention -- a short's poster isn't really the same "
+                          "comparison as a feature film's)")
     add_poster_source_args(ap)
     args = ap.parse_args()
 
@@ -230,20 +247,30 @@ def main():
     imdb_basics = Path(args.imdb_basics)
     ensure_imdb_basics(imdb_basics)
     wanted = {r["imdb_id"] for r in results}
-    genres_by_tt = load_imdb_genres(imdb_basics, wanted)
-    log.info(f"IMDb genres found for {len(genres_by_tt)}/{len(wanted)} imdb_ids")
+    imdb_info = load_imdb_info(imdb_basics, wanted)
+    log.info(f"IMDb info found for {len(imdb_info)}/{len(wanted)} imdb_ids")
 
     for r in results:
-        r["imdb_genres_set"] = genres_by_tt.get(r["imdb_id"], set())
+        info = imdb_info.get(r["imdb_id"], {})
+        r["imdb_genres_set"] = info.get("genres", set())
         r["imdb_genres"] = ",".join(sorted(r["imdb_genres_set"]))
+        r["imdb_title_type"] = info.get("titleType", "")
 
     out_path = Path(args.out)
     write_csv_rows(out_path, [{"id": r["id"], "title": r["title"], "imdb_id": r["imdb_id"],
-                                "pred_genre": r["pred_genre"], "imdb_genres": r["imdb_genres"]}
+                                "pred_genre": r["pred_genre"], "imdb_genres": r["imdb_genres"],
+                                "imdb_title_type": r["imdb_title_type"]}
                                for r in results])
     log.info(f"wrote {out_path} ({len(results)} rows)")
 
-    metrics = compute_genre_metrics([{"pred_genre": r["pred_genre"], "imdb_genres": r["imdb_genres_set"]} for r in results])
+    for_metrics = results
+    if not args.include_shorts:
+        before = len(for_metrics)
+        for_metrics = [r for r in for_metrics if r["imdb_title_type"] in STRICT_TITLE_TYPES]
+        log.info(f"--include-shorts not set: {before - len(for_metrics)} row(s) excluded for a "
+                 f"non-movie/tvMovie IMDb titleType (shorts, videos, TV episodes, or no IMDb match at all)")
+
+    metrics = compute_genre_metrics([{"pred_genre": r["pred_genre"], "imdb_genres": r["imdb_genres_set"]} for r in for_metrics])
     print_report(metrics)
 
 

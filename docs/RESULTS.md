@@ -218,32 +218,46 @@ poster outside the corpus these taxonomies/prompts were built against:
   — just large enough to flag a pattern worth checking properly.
 
   **Follow-up at real scale** (`scripts/qa/validate_genre_classifier_vs_imdb.py`):
-  200 real posters (50 per genre), scored against **IMDb's own genre
+  500 real posters (125 per genre), scored against **IMDb's own genre
   tags** instead of TMDB's — an independent reference the classifier had
-  no part in and this repo doesn't otherwise touch. 52 excluded (shorts/
-  documentaries/animation, or older titles IMDb itself never finished
-  tagging — inspected by hand; neither is evidence the classifier is
-  wrong). Across the 148 that could be scored: **62.2%** of the
-  classifier's genre calls hold up against IMDb. Recall by true genre:
-  horror 64.0%, thriller 56.1%, mystery 43.2%, sci-fi 23.7% — the last
-  one nearly doubles to 42.1% once a multi-genre film gets credit for
-  the classifier picking a *different* genre it also legitimately has
-  (35 of the 148 carry two or three of the four target genres at once in
-  IMDb's own data; genre isn't single-label in the real world, only in
-  this classifier's output).
+  no part in and this repo doesn't otherwise touch. Restricted to IMDb's
+  own `movie`/`tvMovie` titleTypes (143 of 500 were shorts, videos, TV
+  episodes, or had no IMDb match at all — not a fair comparison against a
+  feature-film poster classifier either way), then 92 more excluded for
+  tagging none of horror/sci-fi/thriller/mystery in IMDb at all
+  (shorts-adjacent content and older titles IMDb itself never finished
+  tagging; neither is evidence the classifier is wrong). Across the 265
+  that could be scored: **60.0%** of the classifier's genre calls hold up
+  against IMDb.
 
-  The specific mechanism from the 18-poster check doesn't fully survive
-  this: sci-fi's most common misclassification here is actually
-  **thriller** (34% of true sci-fi posters), not horror (21%) — the
-  "capture dark/tense tone as horror" story was too neat. What does
-  survive: horror remains this classifier's most reliable call by a
-  clear margin, and the other three genres are all noticeably less
-  trustworthy than horror is. Same bottom line as before — worth knowing
-  before trusting the `agree` column across genres — but the 67% figure
-  and the "everything collapses to horror" framing don't hold up at
-  n=148 against an independent source. Not a bug in this port either
-  way; this is the same prompts and the same taxonomy the real project
-  used, just measured better.
+  Recall by true genre (strict / credited for picking a genre the film
+  also legitimately has, since IMDb genres are multi-label and this
+  classifier is forced to pick one): horror 56.3%/66.2%, thriller
+  51.2%/63.6%, mystery 50.6%/69.6%, sci-fi 34.0%/42.0%. An earlier
+  200-poster pass at this same question (no titleType filter, n=148
+  scored) found a similar shape but different exact numbers — horror
+  64.0%/72.0%, sci-fi 23.7%/42.1% — worth flagging on its own: even a few
+  hundred posters isn't enough for these specific percentages to fully
+  stabilize, though sci-fi's *lenient* recall landed within a point of
+  itself across both runs (42.1% vs. 42.0%), some reassurance it's
+  measuring something real and not just sampling noise.
+
+  The mechanism keeps getting less tidy the more carefully it's checked.
+  At n=148, sci-fi's most common misclassification was thriller. At
+  n=265 with the titleType filter, it splits between mystery (30%) and
+  thriller (24%) — and horror, the genre the original 18-poster check
+  blamed, is now the *least* common misprediction for true sci-fi
+  posters (12%). Horror still edges out the other three as the
+  classifier's most reliable call, but the margin is modest now (56.3%
+  vs. 50-51% for the rest), not the "everything collapses into horror"
+  story the small sample suggested. Same bottom line as always: worth
+  knowing before trusting the `agree` column across genres. Not a bug in
+  this port; this is the same prompts and the same taxonomy the real
+  project used, measured at three different sample sizes with three
+  different answers about the *exact* mechanism — the general
+  unreliability for non-horror genres is real and consistent, the
+  specific story about *why* keeps moving, which is itself worth knowing
+  before citing a precise number from any single run of this check.
 
 ## SigLIP semantic embeddings
 
