@@ -227,3 +227,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Downloaded by scripts/qa/validate_genre_classifier_vs_imdb.py -- IMDb's
+# public non-commercial dataset (~225MB), auto-cached locally, not source
+data/ground_truth/.imdb_cache/
+
+# macOS Finder metadata
+.DS_Store
