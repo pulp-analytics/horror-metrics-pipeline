@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import sys
 import time
 import urllib.request
@@ -41,6 +42,9 @@ log = get_logger("face_detect")
 
 MODEL_URL = ("https://github.com/opencv/opencv_zoo/raw/main/models/"
              "face_detection_yunet/face_detection_yunet_2023mar.onnx")
+# Verified 2026-08-14 against the file MODEL_URL served at that time:
+# shasum -a 256 face_detection_yunet_2023mar.onnx
+MODEL_SHA256 = "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
 DEFAULT_MODEL_PATH = "data/models/face_detection_yunet_2023mar.onnx"
 DETECT_WIDTH = 320
 CONF_THRESHOLD = 0.6
@@ -61,13 +65,35 @@ VALIDATION = [
 ]
 
 
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def ensure_model(path: Path) -> None:
     if path.exists():
+        actual = _sha256(path)
+        if actual != MODEL_SHA256:
+            raise RuntimeError(
+                f"{path} exists but its sha256 ({actual}) doesn't match the pinned "
+                f"MODEL_SHA256 ({MODEL_SHA256}) -- delete it and re-run to re-download "
+                f"a verified copy, don't just ignore this")
         return
     log.info(f"downloading YuNet model to {path} ...")
     path.parent.mkdir(parents=True, exist_ok=True)
     urllib.request.urlretrieve(MODEL_URL, path)
-    log.info("model downloaded")
+    actual = _sha256(path)
+    if actual != MODEL_SHA256:
+        path.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"downloaded YuNet model's sha256 ({actual}) doesn't match the pinned "
+            f"MODEL_SHA256 ({MODEL_SHA256}) -- refusing to use it. Either the upstream "
+            f"file at MODEL_URL changed (update MODEL_SHA256 after checking why) or the "
+            f"download was corrupted/tampered with")
+    log.info("model downloaded and verified (sha256 matches)")
 
 
 def make_detector(model_path: Path):
