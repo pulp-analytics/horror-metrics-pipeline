@@ -214,9 +214,36 @@ poster outside the corpus these taxonomies/prompts were built against:
   ensemble ("scary and menacing imagery... blood, monsters, or a masked
   killer") captures dark/tense visual tone as much as horror-specific
   content, and that tone overlaps with moody sci-fi and thriller
-  artwork. A real limitation of `09`/`13`'s genre classifier worth
-  knowing before trusting its `agree` column across genres, not a bug
-  in this port -- the same prompts the real project used.
+  artwork. n=18 (n=6 for sci-fi) is too small to trust as a rate, though
+  — just large enough to flag a pattern worth checking properly.
+
+  **Follow-up at real scale** (`scripts/qa/validate_genre_classifier_vs_imdb.py`):
+  200 real posters (50 per genre), scored against **IMDb's own genre
+  tags** instead of TMDB's — an independent reference the classifier had
+  no part in and this repo doesn't otherwise touch. 52 excluded (shorts/
+  documentaries/animation, or older titles IMDb itself never finished
+  tagging — inspected by hand; neither is evidence the classifier is
+  wrong). Across the 148 that could be scored: **62.2%** of the
+  classifier's genre calls hold up against IMDb. Recall by true genre:
+  horror 64.0%, thriller 56.1%, mystery 43.2%, sci-fi 23.7% — the last
+  one nearly doubles to 42.1% once a multi-genre film gets credit for
+  the classifier picking a *different* genre it also legitimately has
+  (35 of the 148 carry two or three of the four target genres at once in
+  IMDb's own data; genre isn't single-label in the real world, only in
+  this classifier's output).
+
+  The specific mechanism from the 18-poster check doesn't fully survive
+  this: sci-fi's most common misclassification here is actually
+  **thriller** (34% of true sci-fi posters), not horror (21%) — the
+  "capture dark/tense tone as horror" story was too neat. What does
+  survive: horror remains this classifier's most reliable call by a
+  clear margin, and the other three genres are all noticeably less
+  trustworthy than horror is. Same bottom line as before — worth knowing
+  before trusting the `agree` column across genres — but the 67% figure
+  and the "everything collapses to horror" framing don't hold up at
+  n=148 against an independent source. Not a bug in this port either
+  way; this is the same prompts and the same taxonomy the real project
+  used, just measured better.
 
 ## SigLIP semantic embeddings
 
