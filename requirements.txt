@@ -22,5 +22,15 @@ opencv-python>=4.8
 # no new pip package -- timm, its one extra dependency, already comes in
 # transitively via open_clip_torch above)
 
+# saliency category (18) -- BLOCKED, see docs/RESULTS.md "Saliency": loading
+# MSI-Net's legacy TF SavedModel hard-crashes (libprotobuf FATAL) with at
+# least some tensorflow/protobuf version combinations. Install at your own
+# risk until that's resolved.
+tensorflow>=2.16
+
+# pose category (19) -- YOLOv8n person detection; ViTPose itself is served
+# through transformers (already a dependency, SigLIP category)
+ultralytics>=8.3
+
 # only needed if you pass --posters-s3-bucket (optional, see utils/posters.py)
 # boto3>=1.34

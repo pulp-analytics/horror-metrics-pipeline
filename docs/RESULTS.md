@@ -418,3 +418,55 @@ is a small, fully deterministic CNN (no dropout/sampling at inference,
 no MSER-style pixel-noise sensitivity like the geometric composition
 category above), run through the exact same `torch.hub` load path and
 model version (`MiDaS_small`) the real project used.
+
+## Saliency (blocked)
+
+`18_saliency_prediction.py` ports the real project's MSI-Net script
+verbatim -- code included in this repo, but **currently non-functional**:
+loading the model's legacy TF SavedModel via `tf.keras.layers.TFSMLayer`
+crashes the whole Python process outright --
+
+```
+[libprotobuf FATAL google/protobuf/message_lite.cc:353] CHECK failed: target + size == res:
+libc++abi: terminating due to uncaught exception of type google::protobuf::FatalException
+```
+
+-- not a catchable Python exception, so no amount of try/except in this
+script can work around it. The downloaded model (`variables.data-00000-of-00001`,
+1.1KB) is suspiciously small for real trained weights next to a 99.8MB
+`saved_model.pb` -- consistent with a TF1-era SavedModel that embeds its
+weights as graph constants rather than a separate variables file, which
+is exactly the format modern protobuf's stricter large-message handling
+is known to choke on. Confirmed this isn't a corrupted download (re-fetched
+cleanly, same crash) or a threading issue.
+
+Not resolved here on purpose, rather than risk a `protobuf`/`tensorflow`
+downgrade that could break every other category in this repo sharing the
+same environment. If you hit this: try pinning an older `protobuf`
+(pre-4.x) in a dedicated virtualenv for this script only, or re-export
+the model as a modern `.keras`/`SavedModel` format upstream.
+
+## Pose
+
+`19_pose_dynamism.py` (YOLOv8n person detection + ViTPose COCO-17
+keypoints) reproduction against `data/qa/pose_score.csv`'s real values
+(12-poster random sample, restricted to posters the real project
+recorded at least one detected person for):
+
+| metric | max diff | mean diff | n |
+|---|---:|---:|---:|
+| `n_persons` | 0 | 0 | 12/12 |
+| `kpt_bbox_area_frac` | 0.0001 | 0.0000 | 12/12 |
+| `limb_asymmetry` | 0.0001 | 0.0000 | 10/12 (2 posters: both real and this port agree no torso keypoints were confident enough to score it) |
+| `mean_kpt_confidence` | 0.0000 | 0.0000 | 12/12 |
+
+Essentially exact -- floating-point rounding noise only, same YOLOv8n
+checkpoint (`yolov8n.pt`) and same ViTPose checkpoint
+(`usyd-community/vitpose-base-simple`) the real project used, both
+deterministic at inference (no sampling).
+
+Unlike the real project's own version, this port doesn't pre-filter
+`--in` to ids with a YuNet-detected face -- see the module docstring for
+why (a full-corpus compute-cost optimization, not a correctness
+requirement; `n_persons=0` is a legitimate answer this port computes
+directly instead of skipping).

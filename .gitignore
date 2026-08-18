@@ -234,3 +234,8 @@ data/ground_truth/.imdb_cache/
 
 # macOS Finder metadata
 .DS_Store
+
+# auto-downloaded YOLOv8n checkpoint (see 19_pose_dynamism.py) -- same
+# reasoning as data/models/ above, ultralytics just saves it to cwd instead
+*.pt
+*.pt

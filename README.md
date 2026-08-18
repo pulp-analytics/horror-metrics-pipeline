@@ -17,8 +17,9 @@ data downstream, not something computed here — that logic will live in a
 separate front-end/presentation repo once one exists, not in this one.
 
 **Status: color, perceptual quality, CLIP semantic embeddings, SigLIP
-semantic embeddings, faces, geometric composition, and depth are built
-and documented (below).**
+semantic embeddings, faces, geometric composition, depth, and pose are
+built and documented (below). Saliency is blocked on a library
+incompatibility -- see docs/RESULTS.md, "Saliency."**
 
 ## Quickstart
 
@@ -41,8 +42,14 @@ python3 scripts/14_face_detect.py             # faces: YuNet detection (local, n
 python3 scripts/15_face_expression.py         # faces: CLIP zero-shot expression per face
 python3 scripts/16_geometric_composition.py   # composition: symmetry/grid/balance/diagonal (local, no AWS)
 python3 scripts/17_depth_estimation.py        # depth: MiDaS monocular depth (torch.hub, first run downloads weights)
+python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection + ViTPose skeleton
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
 ```
+
+`18_saliency_prediction.py` (MSI-Net) exists but is currently blocked by a
+TensorFlow/protobuf incompatibility loading the model's legacy SavedModel
+format -- a hard process-level crash, not something this repo's code can
+work around. See docs/RESULTS.md, "Saliency," before relying on it.
 
 No API key or AWS needed anywhere in this repo — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
@@ -87,6 +94,10 @@ scripts/
                                 pyramid weight-shift -- pure OpenCV, no model
   17_depth_estimation.py       MiDaS_small monocular depth (torch.hub) -- how
                                 close/foreground the threat reads as
+  18_saliency_prediction.py    MSI-Net predicted eye-tracking saliency -- BLOCKED,
+                                see docs/RESULTS.md, "Saliency," before using
+  19_pose_dynamism.py          YOLOv8n person detection + ViTPose skeleton --
+                                static portrait vs. dynamic action pose
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
