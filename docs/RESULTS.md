@@ -399,3 +399,22 @@ Faces section's YuNet/*Scream* tolerance-band note above.
 
 Not tied to horror specifically, same claim as `01_color_metrics.py`:
 none of the five metric groups have genre-specific logic.
+
+## Depth
+
+`17_depth_estimation.py` (MiDaS_small via `torch.hub`) reproduction
+against `data/qa/depth_score.csv`'s real values (15-poster random
+sample, posters read directly from the real project's own local files):
+
+| metric | max diff | mean diff |
+|---|---:|---:|
+| `mean_depth` | 0.0000 | 0.0000 |
+| `p95_depth` | 0.0000 | 0.0000 |
+| `depth_std` | 0.0000 | 0.0000 |
+| `close_area_frac` | 0.0000 | 0.0000 |
+
+Byte-exact, 15/15 -- the cleanest reproduction in this repo. MiDaS_small
+is a small, fully deterministic CNN (no dropout/sampling at inference,
+no MSER-style pixel-noise sensitivity like the geometric composition
+category above), run through the exact same `torch.hub` load path and
+model version (`MiDaS_small`) the real project used.

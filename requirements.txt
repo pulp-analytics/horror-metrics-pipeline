@@ -18,5 +18,9 @@ transformers>=4.40
 # faces category (14-15) -- YuNet face detection
 opencv-python>=4.8
 
+# depth category (17) -- MiDaS_small via torch.hub (fetches its own weights;
+# no new pip package -- timm, its one extra dependency, already comes in
+# transitively via open_clip_torch above)
+
 # only needed if you pass --posters-s3-bucket (optional, see utils/posters.py)
 # boto3>=1.34
