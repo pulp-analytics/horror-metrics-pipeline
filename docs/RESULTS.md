@@ -352,3 +352,50 @@ gap this repo's CLIP scripts already show gets amplified here — the large
 majority of mismatches are cases where both runs were already
 low-confidence, not one run being confidently right and the other
 confidently wrong.
+
+## Geometric composition
+
+`16_geometric_composition.py` ports the real project's `multi_analyze.py`
+verbatim (same OpenCV calls, same parameters) -- five independent metric
+groups from one downsampled frame per poster: `composition` (symmetry,
+negative space, visual complexity, center of mass), `typography` (MSER
+text coverage), `grid` (layout-block alignment + rule-of-thirds), `aesthetic`
+(saliency-based balance, hue-scheme harmony), and `diagonal` (Hough-line
+diagonal share, pyramid/funnel weight-shift).
+
+Reproduction against `data/master_dataset.csv`'s real `clip_attributes_*`
+columns (30-poster random sample, same OpenCV version, 4.10.0, on both
+sides -- posters read directly from the real project's own local files,
+not re-downloaded, to rule out a resolution difference from TMDB's CDN):
+
+| metric group | columns | max diff | mean diff | within 0.005 |
+|---|---|---:|---:|---:|
+| composition/aesthetic/diagonal (Sobel/Canny/saliency/HSV-histogram/Hough) | `symmetry`, `neg_space`, `complexity`, `mass_x/y`, `balance`, `harmony`, `diagonal_score`, `pyramid_shift` | 0.01-0.57* | 0.001-0.07 | 16-29/30 |
+| grid's contour-based half | `thirds_dist` | 0.02 | 0.00 | 27/30 |
+| **MSER-text-dependent** | `text_area`, `text_y`, `text_regions`, `align_score`, `n_blocks` | up to 614 (region *count*) | large | 1-9/30 |
+
+\* `harmony`'s one 2.0 outlier is a single sentinel-value disagreement
+(-1 vs. a real score on a poster with an ambiguous hue histogram), not
+representative of the other 29 posters.
+
+**MSER (`cv2.MSER_create`) is the real, unresolved reproduction gap here**,
+not the port's logic: every metric computed from the *same* resized
+grayscale frame reproduces closely (often exactly) except the ones that
+run MSER glyph-region detection on that identical frame. Confirmed this
+isn't environment noise -- re-running this repo's own MSER call on the
+same file three times in a row gives byte-identical output every time
+(deterministic within a run), and forcing single-threaded OpenCV
+(`cv2.setNumThreads(1)`) doesn't change the result either. The most
+likely explanation: the real project's posters on disk today may not be
+byte-identical to what `multi_analyze.py` originally analyzed (e.g. a
+later poster-quality backfill pass) -- MSER's blob detection is far more
+sensitive to small pixel-level differences (recompression noise, a
+slightly different source resolution before downsampling) than a
+gradient mean or a color histogram is, which would produce exactly this
+pattern: near-exact agreement on aggregate/statistical metrics, wild
+disagreement on "count the small blobs" ones. Unresolved, flagged here
+rather than silently claimed as a clean port -- same spirit as the
+Faces section's YuNet/*Scream* tolerance-band note above.
+
+Not tied to horror specifically, same claim as `01_color_metrics.py`:
+none of the five metric groups have genre-specific logic.

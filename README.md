@@ -17,9 +17,8 @@ data downstream, not something computed here — that logic will live in a
 separate front-end/presentation repo once one exists, not in this one.
 
 **Status: color, perceptual quality, CLIP semantic embeddings, SigLIP
-semantic embeddings, and faces are built and documented (below).
-Geometric composition is a real, already-run part of the project but not
-yet ported to this public repo.**
+semantic embeddings, faces, and geometric composition are built and
+documented (below).**
 
 ## Quickstart
 
@@ -40,19 +39,21 @@ python3 scripts/12_siglip_fear_axis.py        # SigLIP: dread<->calm axis
 python3 scripts/13_siglip_reanalysis.py       # SigLIP: census + typography + genre
 python3 scripts/14_face_detect.py             # faces: YuNet detection (local, no AWS)
 python3 scripts/15_face_expression.py         # faces: CLIP zero-shot expression per face
+python3 scripts/16_geometric_composition.py   # composition: symmetry/grid/balance/diagonal (local, no AWS)
 python3 -m pytest tests/ -v
 ```
 
 No API key or AWS needed anywhere in this repo — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
-detector) is a small local ONNX file, not a cloud service. All eleven
-download-capable scripts (everything except `06`-`09`, `12`-`13`, and
-`15`, which read `05`'s/`11`'s embedding cache or `14`'s face boxes)
-share one poster cache (`data/posters_cache/`, see `utils/posters.py`):
-whichever script runs first downloads a given poster, the others reuse
-that file. That cache can optionally check S3 first (`--posters-s3-bucket`,
-matching the real project's own storage pattern) before falling back to
-TMDB — entirely optional, off by default.
+detector) is a small local ONNX file, not a cloud service. Every
+download-capable script (everything except `06`-`09`, `12`-`13`, and
+`15`, which read `05`'s/`11`'s embedding cache or `14`'s face boxes --
+`16` downloads fresh, same as `01`-`04`/`14`) shares one poster cache
+(`data/posters_cache/`, see `utils/posters.py`): whichever script runs
+first downloads a given poster, the others reuse that file. That cache
+can optionally check S3 first (`--posters-s3-bucket`, matching the real
+project's own storage pattern) before falling back to TMDB — entirely
+optional, off by default.
 
 Not tied to horror specifically: `01_color_metrics.py` has no
 genre-specific logic and was verified live against a real, non-horror
@@ -80,6 +81,9 @@ scripts/
   13_siglip_reanalysis.py      SigLIP version of 06+08+09, one shared model load
   14_face_detect.py            YuNet face detection (local ONNX, not Rekognition)
   15_face_expression.py        CLIP zero-shot expression per detected face -- reads 14's output
+  16_geometric_composition.py  symmetry/negative-space/mass, MSER text coverage,
+                                grid+thirds alignment, balance/harmony, diagonal/
+                                pyramid weight-shift -- pure OpenCV, no model
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
