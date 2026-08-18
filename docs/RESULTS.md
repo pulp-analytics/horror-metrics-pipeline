@@ -470,3 +470,43 @@ Unlike the real project's own version, this port doesn't pre-filter
 why (a full-corpus compute-cost optimization, not a correctness
 requirement; `n_persons=0` is a legitimate answer this port computes
 directly instead of skipping).
+
+## Creature/weapon detection
+
+Two independent zero-shot open-vocabulary object detectors, run over
+the same 18-phrase creature vocabulary and 12-phrase weapon vocabulary:
+`20_creature_weapon_owlv2.py` (OWLv2, `google/owlv2-base-patch16`) and
+`21_creature_weapon_dino.py` (Grounding DINO,
+`IDEA-Research/grounding-dino-tiny`). Two detectors exist because one
+alone isn't trustworthy: a blind Nova Pro QA pass over the real
+project's full-corpus OWLv2 output found roughly 60%+ of its "creature
+detected" boxes were false positives. Neither script's raw output
+should be read as ground truth by itself -- agreement between the two
+on the same poster is the real signal.
+
+Reproduction against the real project's own output
+(`data/creature_boxes.json`/`data/weapon_boxes.json` for OWLv2,
+`data/creature_boxes_dino.json`/`data/weapon_boxes_dino.json` for
+Grounding DINO), same 8-poster sample, comparing `n` and `top_label`
+per category:
+
+| detector | creature match | weapon match |
+|---|---:|---:|
+| OWLv2 (20) | 7/8 exact | 8/8 exact |
+| Grounding DINO (21) | 8/8 exact | 8/8 exact |
+
+OWLv2's one mismatch (id `18405`): real recorded `n=2`, this port got
+`n=1`, same `top_label` -- one fewer box past the score threshold,
+not a different top detection. Everything else, both detectors, matched
+exactly, including agreement on zero-detection posters and on which
+specific weapon (e.g. `machete`) was found.
+
+Both detectors run the exact same 30 label phrases, area filter
+(0.002-0.95 of image area), and top-`MAX_BOXES=3`-by-score truncation
+as the real project's scripts -- the only source of nondeterminism at
+inference is floating-point kernel scheduling, which these results show
+doesn't move the discrete outputs (`n`, `top_label`) at this sample size.
+
+Not tied to horror specifically -- the vocabulary (vampires, zombies,
+knives, chainsaws, etc.) skews toward horror/thriller imagery by
+construction, but the detectors themselves are general-purpose.

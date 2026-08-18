@@ -17,9 +17,9 @@ data downstream, not something computed here — that logic will live in a
 separate front-end/presentation repo once one exists, not in this one.
 
 **Status: color, perceptual quality, CLIP semantic embeddings, SigLIP
-semantic embeddings, faces, geometric composition, depth, and pose are
-built and documented (below). Saliency is blocked on a library
-incompatibility -- see docs/RESULTS.md, "Saliency."**
+semantic embeddings, faces, geometric composition, depth, pose, and
+creature/weapon detection are built and documented (below). Saliency is
+blocked on a library incompatibility -- see docs/RESULTS.md, "Saliency."**
 
 ## Quickstart
 
@@ -43,6 +43,8 @@ python3 scripts/15_face_expression.py         # faces: CLIP zero-shot expression
 python3 scripts/16_geometric_composition.py   # composition: symmetry/grid/balance/diagonal (local, no AWS)
 python3 scripts/17_depth_estimation.py        # depth: MiDaS monocular depth (torch.hub, first run downloads weights)
 python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection + ViTPose skeleton
+python3 scripts/20_creature_weapon_owlv2.py   # creature/weapon: OWLv2 zero-shot detection
+python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO cross-check
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
 ```
 
@@ -51,12 +53,19 @@ TensorFlow/protobuf incompatibility loading the model's legacy SavedModel
 format -- a hard process-level crash, not something this repo's code can
 work around. See docs/RESULTS.md, "Saliency," before relying on it.
 
+`20_creature_weapon_owlv2.py` and `21_creature_weapon_dino.py` are meant
+to be run together, not standalone: a blind QA pass over the real
+project's OWLv2-only output found roughly 60%+ of its "creature
+detected" boxes were false positives, so treat each script's raw output
+as a candidate, not a verdict -- agreement between the two on a poster
+is the actual signal. See docs/RESULTS.md, "Creature/weapon detection."
+
 No API key or AWS needed anywhere in this repo — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
 detector) is a small local ONNX file, not a cloud service. Every
 download-capable script (everything except `06`-`09`, `12`-`13`, and
 `15`, which read `05`'s/`11`'s embedding cache or `14`'s face boxes --
-`16` downloads fresh, same as `01`-`04`/`14`) shares one poster cache
+`16`-`21` all download fresh, same as `01`-`04`/`14`) shares one poster cache
 (`data/posters_cache/`, see `utils/posters.py`): whichever script runs
 first downloads a given poster, the others reuse that file. That cache
 can optionally check S3 first (`--posters-s3-bucket`, matching the real
@@ -98,6 +107,11 @@ scripts/
                                 see docs/RESULTS.md, "Saliency," before using
   19_pose_dynamism.py          YOLOv8n person detection + ViTPose skeleton --
                                 static portrait vs. dynamic action pose
+  20_creature_weapon_owlv2.py  OWLv2 zero-shot creature/weapon detection --
+                                noisy alone, see docs/RESULTS.md before using
+  21_creature_weapon_dino.py   Grounding DINO zero-shot creature/weapon
+                                detection -- same vocabulary as 20, run both
+                                and treat agreement as the signal
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
