@@ -1,14 +1,5 @@
 #!/usr/bin/env python3
-"""BLOCKED as of this writing -- see docs/RESULTS.md, "Saliency (blocked),"
-before running this. Loading MSI-Net's legacy TF SavedModel via
-tf.keras.layers.TFSMLayer hard-crashes the Python process (libprotobuf
-FATAL, not a catchable exception) with at least some tensorflow/protobuf
-version combinations. The code below is a faithful, otherwise-untested
-port of the real project's script -- included so the work isn't lost and
-so a future environment with a compatible protobuf can pick it up, not
-because it's known to run end to end today.
-
-Visual saliency prediction (MSI-Net) over movie posters -- where does
+"""Visual saliency prediction (MSI-Net) over movie posters -- where does
 the eye go first?
 
 alexanderkroner/MSI-Net, a contextual encoder-decoder CNN trained on real
@@ -30,9 +21,21 @@ as a probability-like distribution):
   python3 18_saliency_prediction.py --in data/sample_input/sample_100_posters.csv
 
 Requires tensorflow (see requirements.txt) -- the one script in this repo
-that isn't torch-based. The model ships as a legacy TF SavedModel, loaded
-via Keras 3's TFSMLayer since tf.keras.models.load_model() dropped
-support for that format.
+that isn't torch-based. The model ships as a legacy TF SavedModel with its
+weights embedded as graph constants rather than a normal variables file --
+loading it through Keras 3's tf.keras.layers.TFSMLayer (the documented
+replacement for the dropped tf.keras.models.load_model() SavedModel path)
+hard-crashes the process outright (libprotobuf FATAL, uncatchable) on at
+least some tensorflow/protobuf builds, because restoring that graph's
+protobuf-encoded weights trips a bug in protobuf's C++/upb parser. Plain
+`tf.saved_model.load()` (the low-level loader, bypassing Keras entirely)
+hits the exact same crash restoring the same graph -- it isn't a
+Keras-specific bug. What actually avoids it: forcing protobuf's pure-Python
+implementation via PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python, set
+below before tensorflow is ever imported. That's a runtime backend switch,
+not a package change -- nothing in requirements.txt or the shared
+environment's installed versions is touched. See docs/RESULTS.md,
+"Saliency," for how this was root-caused and confirmed.
 
 Resumable: re-running with the same --out skips ids already processed.
 Shares its poster cache with the other per-poster scripts -- see
@@ -45,9 +48,14 @@ from __future__ import annotations
 
 import argparse
 import csv
+import os
 import sys
 import time
 from pathlib import Path
+
+# Must be set before tensorflow (and therefore protobuf) is imported
+# anywhere in this process -- see the module docstring for why.
+os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
 
 import numpy as np
 import requests
@@ -67,21 +75,15 @@ def load_msinet():
     from huggingface_hub import snapshot_download
 
     hf_dir = snapshot_download(repo_id="alexanderkroner/MSI-Net")
-    # Keras 3 dropped tf.keras.models.load_model() support for legacy TF
-    # SavedModel dirs -- TFSMLayer is the documented replacement.
-    return tf.keras.layers.TFSMLayer(hf_dir, call_endpoint="serving_default")
+    # Low-level loader, not tf.keras.layers.TFSMLayer -- see module
+    # docstring: the crash this works around isn't Keras-specific, it's
+    # triggered by restoring this SavedModel's graph at all under
+    # protobuf's default (C++/upb) backend.
+    loaded = tf.saved_model.load(hf_dir)
+    return loaded.signatures["serving_default"]
 
 
-def predict_saliency(model, img_path: Path) -> dict:
-    import tensorflow as tf
-
-    img = tf.keras.utils.load_img(str(img_path))
-    arr = np.array(img, dtype=np.float32)
-    inp = tf.expand_dims(arr, axis=0)
-    inp = tf.image.resize(inp, (320, 320), preserve_aspect_ratio=True)
-    result = model(inp)
-    sal = result[list(result.keys())[0]].numpy().squeeze()  # key is "layer_from_saved_model", not "output"
-
+def summarize_saliency(sal: np.ndarray) -> dict:
     total = sal.sum()
     flat = sal.flatten()
     k = max(1, int(0.10 * flat.size))
@@ -93,6 +95,18 @@ def predict_saliency(model, img_path: Path) -> dict:
         "top10pct_mass": round(top10_mass, 4),
         "mean_saliency": round(float(sal.mean()), 4),
     }
+
+
+def predict_saliency(model, img_path: Path) -> dict:
+    import tensorflow as tf
+
+    img = tf.keras.utils.load_img(str(img_path))
+    arr = np.array(img, dtype=np.float32)
+    inp = tf.expand_dims(arr, axis=0)
+    inp = tf.image.resize(inp, (320, 320), preserve_aspect_ratio=True)
+    result = model(input_1=inp)
+    sal = result[list(result.keys())[0]].numpy().squeeze()  # key is "layer_from_saved_model", not "output"
+    return summarize_saliency(sal)
 
 
 def main():

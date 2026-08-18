@@ -419,32 +419,53 @@ no MSER-style pixel-noise sensitivity like the geometric composition
 category above), run through the exact same `torch.hub` load path and
 model version (`MiDaS_small`) the real project used.
 
-## Saliency (blocked)
+## Saliency
 
-`18_saliency_prediction.py` ports the real project's MSI-Net script
-verbatim -- code included in this repo, but **currently non-functional**:
-loading the model's legacy TF SavedModel via `tf.keras.layers.TFSMLayer`
-crashes the whole Python process outright --
+`18_saliency_prediction.py` ports the real project's MSI-Net script.
+It was blocked for part of this porting effort: loading the model's
+legacy TF SavedModel via `tf.keras.layers.TFSMLayer` crashes the whole
+Python process outright --
 
 ```
 [libprotobuf FATAL google/protobuf/message_lite.cc:353] CHECK failed: target + size == res:
 libc++abi: terminating due to uncaught exception of type google::protobuf::FatalException
 ```
 
--- not a catchable Python exception, so no amount of try/except in this
-script can work around it. The downloaded model (`variables.data-00000-of-00001`,
-1.1KB) is suspiciously small for real trained weights next to a 99.8MB
-`saved_model.pb` -- consistent with a TF1-era SavedModel that embeds its
-weights as graph constants rather than a separate variables file, which
-is exactly the format modern protobuf's stricter large-message handling
-is known to choke on. Confirmed this isn't a corrupted download (re-fetched
-cleanly, same crash) or a threading issue.
+-- not a catchable Python exception, so no amount of try/except could
+work around it from inside the script. Root cause, confirmed by testing:
+this is **not** a Keras-specific bug -- calling the low-level
+`tf.saved_model.load()` on the exact same SavedModel directory (bypassing
+`TFSMLayer`/Keras entirely) hits the identical crash restoring the same
+graph. The model's weights are embedded as graph constants rather than a
+normal variables file (`variables.data-00000-of-00001` is only 1.1KB next
+to a 99.8MB `saved_model.pb`), and restoring that large embedded-constant
+graph trips a real bug in protobuf's default C++/upb parser backend.
 
-Not resolved here on purpose, rather than risk a `protobuf`/`tensorflow`
-downgrade that could break every other category in this repo sharing the
-same environment. If you hit this: try pinning an older `protobuf`
-(pre-4.x) in a dedicated virtualenv for this script only, or re-export
-the model as a modern `.keras`/`SavedModel` format upstream.
+**Fix**: set `PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION=python` before
+`tensorflow` is imported anywhere in the process, forcing protobuf's pure-
+Python implementation for this one script. This is a runtime backend
+switch, not a package change -- no version in `requirements.txt` or the
+shared environment changes, so it can't break any other category sharing
+that environment. `18_saliency_prediction.py` sets this itself at the top
+of the module, before importing tensorflow, so no extra setup is needed
+to run it. Confirmed not a corrupted download (re-fetched cleanly, same
+crash before the fix) or a threading issue.
+
+Reproduction against `data/qa/saliency_score.csv`'s real values (8-poster
+random sample, posters read directly from the real project's own local
+files):
+
+| metric | max diff | mean diff |
+|---|---:|---:|
+| `peak_x` | 0.0000 | 0.0000 |
+| `peak_y` | 0.0000 | 0.0000 |
+| `top10pct_mass` | 0.0000 | 0.0000 |
+| `mean_saliency` | 0.0000 | 0.0000 |
+
+Byte-exact, 8/8 -- same as depth, MSI-Net is a small deterministic CNN
+(no dropout/sampling at inference) and the pure-Python protobuf backend
+only changes how the SavedModel is deserialized, not the tensor math run
+afterward.
 
 ## Pose
 
