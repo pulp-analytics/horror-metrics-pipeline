@@ -259,6 +259,41 @@ poster outside the corpus these taxonomies/prompts were built against:
   specific story about *why* keeps moving, which is itself worth knowing
   before citing a precise number from any single run of this check.
 
+### Nova QA (23/24): does an independent vision-LLM agree with CLIP?
+
+`23_census_nova_qa.py` and `24_typography_nova_qa.py` port the real
+project's `qa_census.py`/`qa_typography.py`: draw nothing, just ask Nova
+Pro to independently classify the same poster CLIP already scored, then
+compare. Same justification as the creature/weapon QA below -- these are
+semantic classification calls, the kind of judgment a vision-LLM adds
+real signal on, unlike composition/depth/saliency/pose's continuous
+geometric measurements.
+
+Live run, 40 real posters, `us.amazon.nova-pro-v1:0`:
+
+| script | metric | result |
+|---|---|---|
+| `23` (census, `06`) | exact label agreement | 8/40 (20.0%) |
+| `24` (typography, `08`) | exact register agreement | 30/40 (75.0%) |
+| `24` (typography, `08`) | exact-or-adjacent-register agreement | 39/40 (97.5%) |
+
+Very different agreement rates, and both make sense on inspection.
+Census's low number is mostly a labeling-convention artifact, not
+disagreement about content: CLIP's `06` outputs the literal string
+`"uncertain"` for any low-confidence poster (27 of this sample's 40 —
+most posters genuinely have no creature), but Nova is never offered
+`"uncertain"` as an option and always picks a real category or `"none"`
+-- so `"uncertain" != "none"` counts as disagreement on every single one
+of those 27 rows even when Nova's answer (`"none"`) is exactly the right
+call. Spot-checking the reasons confirms this: e.g. poster 870056
+("House of Dracula"), CLIP said `"uncertain"`, Nova said `"vampire"`
+because it read the *title text* on the poster -- a channel CLIP's
+embedding-similarity method doesn't use the same way. Typography's
+75%/97.5% is a much more direct, high agreement result: title lettering
+style is a lower-ambiguity call than "is there a monster," and the
+5-register spectrum gives partial credit (`agree_adjacent`) for being one
+bucket off, which is where most of the remaining 15/40 landed.
+
 ## SigLIP semantic embeddings
 
 Same 5-poster live check as CLIP above, against `data/master_dataset.csv`'s
@@ -531,3 +566,44 @@ doesn't move the discrete outputs (`n`, `top_label`) at this sample size.
 Not tied to horror specifically -- the vocabulary (vampires, zombies,
 knives, chainsaws, etc.) skews toward horror/thriller imagery by
 construction, but the detectors themselves are general-purpose.
+
+### Nova QA (22): the ~60%+ false-positive claim, made reproducible
+
+The "roughly 60%+ of OWLv2's boxes were false positives" claim above is
+a citation from the real project's prior run of its own `qa_creature_weapon_boxes.py`
+-- until now, that script itself had never been ported, so the finding
+could only be taken on faith. `22_creature_weapon_nova_qa.py` ports it:
+draws the detected box in red on the poster, asks Nova Pro whether it's
+really there.
+
+Live run, 29 real OWLv2 detections (15 posters spanning multiple genres,
+not exclusively horror -- see caveat below), `us.amazon.nova-pro-v1:0`:
+
+| verdict | n | % |
+|---|---:|---:|
+| `false_positive` | 23 | 79.3% |
+| `correct` | 4 | 13.8% |
+| `uncertain` | 2 | 6.9% |
+
+Higher than the original ~60% figure, and the reasons why line up with a
+real, honest difference in sample composition rather than a worse
+detector: this 15-poster sample was pulled from the real project's own
+`creature_boxes.json`/`weapon_boxes.json` history (the same ids used for
+20/21's reproduction test above) to guarantee real detections to QA, not
+filtered to horror/genre content the way a stratified full-corpus sample
+would be -- it includes *Citizen Kane*, *Brazil*, *2001: A Space
+Odyssey*, *Memento*: films with essentially zero real creature content,
+where OWLv2's hits are almost certainly spurious by construction. Nova's
+reasoning on those is exactly the failure mode the finding describes --
+e.g. id 15 (*Citizen Kane*), OWLv2 said `"vampire"` (score 0.218-0.289),
+Nova's `actual`: `"man"` / `"woman"`; id 77 (*Memento*), `"vampire"`
+(0.203) → `"man's face"`. The two `correct` creature hits both came from
+posters that genuinely have the thing (*Brazil* → real `"vampire"` visual
+motif at 0.456; *Mars Attacks!* → real `"zombie"`/alien imagery at
+0.408), and the one weapon detection scored (*A History of Violence*,
+`"gun"`) was also confirmed correct -- so the mechanism isn't rubber-
+stamping "false_positive," it's tracking something real.
+
+Not wired into `compute_metrics.asl.json` -- see the module docstring
+for why (a QA/spot-check tool, not a pipeline stage), and this needs real
+AWS credentials, unlike every other script in this repo except 23/24.

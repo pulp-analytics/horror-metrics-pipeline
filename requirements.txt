@@ -22,15 +22,19 @@ opencv-python>=4.8
 # no new pip package -- timm, its one extra dependency, already comes in
 # transitively via open_clip_torch above)
 
-# saliency category (18) -- BLOCKED, see docs/RESULTS.md "Saliency": loading
-# MSI-Net's legacy TF SavedModel hard-crashes (libprotobuf FATAL) with at
-# least some tensorflow/protobuf version combinations. Install at your own
-# risk until that's resolved.
+# saliency category (18) -- MSI-Net's legacy TF SavedModel; loading it via
+# tf.keras.layers.TFSMLayer or plain tf.saved_model.load() hard-crashes
+# under protobuf's default C++/upb backend (see docs/RESULTS.md,
+# "Saliency") -- 18_saliency_prediction.py works around this itself by
+# forcing protobuf's pure-Python backend, no special install step needed.
 tensorflow>=2.16
 
 # pose category (19) -- YOLOv8n person detection; ViTPose itself is served
 # through transformers (already a dependency, SigLIP category)
 ultralytics>=8.3
 
-# only needed if you pass --posters-s3-bucket (optional, see utils/posters.py)
-# boto3>=1.34
+# creature/weapon Nova QA (22) -- the one script in this repo that needs
+# real AWS access (Bedrock's Nova Pro), see its own module docstring.
+# Every other script here is boto3-free unless you opt into
+# --posters-s3-bucket (see utils/posters.py).
+boto3>=1.34

@@ -47,6 +47,11 @@ python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection +
 python3 scripts/20_creature_weapon_owlv2.py   # creature/weapon: OWLv2 zero-shot detection
 python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO cross-check
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
+
+# optional Nova QA scripts (22/23/24) -- need real AWS/Bedrock access, see below
+python3 scripts/22_creature_weapon_nova_qa.py --boxes data/sample_output/creature_weapon_owlv2.csv --source owlv2 --n 50
+python3 scripts/23_census_nova_qa.py --census data/sample_output/census.csv --n 50
+python3 scripts/24_typography_nova_qa.py --typography data/sample_output/typography.csv --n 50
 ```
 
 `18_saliency_prediction.py` (MSI-Net) loads a legacy TF SavedModel that
@@ -62,7 +67,21 @@ detected" boxes were false positives, so treat each script's raw output
 as a candidate, not a verdict -- agreement between the two on a poster
 is the actual signal. See docs/RESULTS.md, "Creature/weapon detection."
 
-No API key or AWS needed anywhere in this repo — posters come from TMDB's
+`22_creature_weapon_nova_qa.py`, `23_census_nova_qa.py`, and
+`24_typography_nova_qa.py` are Nova Pro vision-LLM QA tools, not pipeline
+stages -- they cross-check a detector/classifier's raw output (20/21, 06,
+08) against an independent judgment on the same poster, the same
+methodology behind the "roughly 60%+ false positives" claim above. These
+are the only three scripts in this repo that need real AWS credentials
+(Bedrock's Nova Pro, `us.amazon.nova-pro-v1:0`) -- set `AWS_PROFILE` to a
+profile with `bedrock:InvokeModel` access. See docs/RESULTS.md's
+"Nova QA" subsections (under "CLIP semantic embeddings" and
+"Creature/weapon detection") for what running them against real posters
+found. Not wired into `compute_metrics.asl.json` in
+poster-analysis-infrastructure -- spot-check tools, not something a
+Step Functions execution runs automatically.
+
+No API key or AWS needed for scripts 01-21 — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
 detector) is a small local ONNX file, not a cloud service. Every
 download-capable script (everything except `06`-`09`, `12`-`13`, and
@@ -114,6 +133,12 @@ scripts/
   21_creature_weapon_dino.py   Grounding DINO zero-shot creature/weapon
                                 detection -- same vocabulary as 20, run both
                                 and treat agreement as the signal
+  22_creature_weapon_nova_qa.py  Nova Pro QA of 20/21's boxes -- needs AWS,
+                                  not a pipeline stage, see docs/RESULTS.md
+  23_census_nova_qa.py           Nova Pro QA of 06's CLIP census -- needs AWS,
+                                  not a pipeline stage
+  24_typography_nova_qa.py       Nova Pro QA of 08's CLIP typography axis --
+                                  needs AWS, not a pipeline stage
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
