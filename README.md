@@ -116,6 +116,25 @@ genre-specific logic and was verified live against a real, non-horror
 (sci-fi) sample with zero code changes — see "Genre-agnostic, verified"
 in docs/RESULTS.md.
 
+## Joining the outputs into one table
+
+This repo's own contract stays one file per metric, one row per poster
+(see "Scope" above) -- but if you want a single flat table instead of
+joining the pieces yourself, `assemble_master_dataset.py` does exactly
+that:
+
+```bash
+python3 assemble_master_dataset.py --data-dir data/sample_output --out master_dataset.csv
+```
+
+It left-joins every metric CSV found in `--data-dir` onto the corpus
+base (`validated_corpus.csv` or `metrics_input.csv`), prefixing each
+file's columns with its own stem so same-named columns across files
+(e.g. `creature_n` in both `creature_weapon_owlv2.csv` and
+`creature_weapon_dino.csv`) never collide. `face_expression.csv` is
+aggregated first since it's the one output with multiple rows per
+poster (one per detected face).
+
 ## Structure
 
 ```
