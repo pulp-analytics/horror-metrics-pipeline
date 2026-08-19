@@ -57,9 +57,9 @@ python3 scripts/24_typography_nova_qa.py --typography data/sample_output/typogra
 
 GitHub Actions runs `make test-fast` on every push and PR to `main`
 (`.github/workflows/test.yml`). It installs `requirements-ci.txt`, a
-subset of `requirements.txt` that skips tensorflow/pyiqa/open_clip/
-ultralytics -- those are only needed by `@pytest.mark.slow` tests or by
-`load_*` helpers the fast suite never calls.
+subset of `requirements.txt` that skips tensorflow/pyiqa/ultralytics --
+those are only needed by `@pytest.mark.slow` tests or by `load_*`
+helpers the fast suite never calls.
 
 `18_saliency_prediction.py` (MSI-Net) loads a legacy TF SavedModel that
 crashes under TensorFlow/protobuf's default C++ backend -- the script
