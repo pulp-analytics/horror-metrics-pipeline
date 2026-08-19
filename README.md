@@ -134,8 +134,11 @@ that:
 python3 assemble_master_dataset.py --data-dir data/sample_output --out master_dataset.csv
 ```
 
-It left-joins every metric CSV found in `--data-dir` onto the corpus
-base (`validated_corpus.csv` or `metrics_input.csv`), prefixing each
+`data/sample_output/metrics_input.csv` is the 99-poster corpus list
+(same ids as `data/sample_input/sample_100_posters.csv`), so that
+command auto-detects the base -- no `--base` needed on the checked-in
+sample. It left-joins every metric CSV found in `--data-dir` onto the
+corpus base (`validated_corpus.csv` or `metrics_input.csv`), prefixing each
 file's columns with its own stem so same-named columns across files
 (e.g. `creature_n` in both `creature_weapon_owlv2.csv` and
 `creature_weapon_dino.csv`) never collide. `face_expression.csv` is
@@ -193,8 +196,10 @@ scripts/
                                       helper, used by 12/13
 data/
   sample_input/    99 real posters, stratified by decade (1920s-2020s)
-  sample_output/   real, already-computed metrics for those same posters,
-                    plus real 99-poster clip_embeddings.npz and
+  sample_output/   real, already-computed metrics for those same posters
+                    (01-21, including geometric/depth/saliency/pose and
+                    both creature/weapon detectors), metrics_input.csv as
+                    the join base, plus clip_embeddings.npz and
                     siglip_embeddings.npz generated for this repo (see
                     docs/RESULTS.md for what's verified to reproduce
                     exactly vs. what isn't, and why)
