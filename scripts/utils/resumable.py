@@ -23,13 +23,23 @@ def load_done_ids(path: Path, id_col: str = "id") -> set[str]:
 def open_for_append(path: Path, fieldnames: list[str]) -> tuple:
     """Returns (file_handle, DictWriter). Writes the header only if the
     file didn't already exist -- so re-running after an interruption
-    appends cleanly instead of duplicating a header mid-file."""
-    is_new = not path.exists()
+    appends cleanly instead of duplicating a header mid-file.
+
+    Treats a 0-byte file as "no header yet", not just a missing file: a
+    process killed (OOM, Batch/Fargate stop, spot interruption) right after
+    creating the file but before its header line reached disk leaves an
+    empty file behind. Without this check, the next run sees the file
+    "already exists", opens in append mode, and never writes a header --
+    producing a shard whose first data row silently gets read as the
+    header downstream (real prodtest-3000 failure, 2026-08-19: 7 of 10 IQA
+    shards ended up headerless this way after a retried Batch array job)."""
+    needs_header = not path.exists() or path.stat().st_size == 0
     path.parent.mkdir(parents=True, exist_ok=True)
-    f = path.open("a" if not is_new else "w", newline="", encoding="utf-8")
+    f = path.open("a" if path.exists() else "w", newline="", encoding="utf-8")
     w = csv.DictWriter(f, fieldnames=fieldnames)
-    if is_new:
+    if needs_header:
         w.writeheader()
+        f.flush()
     return f, w
 
 
