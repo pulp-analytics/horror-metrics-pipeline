@@ -4,9 +4,11 @@ Every model this repo loads, what it actually resolves to, and how tight
 that pin is. Written after finding that two of these (SigLIP, the LAION
 aesthetic head) were loading from a Hugging Face Hub model_id with no
 `revision` pin -- meaning `from_pretrained(MODEL_ID)` silently tracks
-whatever's on that repo's `main` branch, not a fixed artifact. Fixed here;
-this doc exists so the next model added to this repo gets the same check
-instead of the gap reappearing.
+whatever's on that repo's `main` branch, not a fixed artifact. The same
+gap later showed up on MiDaS, MSI-Net, ViTPose, YOLOv8n, OWLv2, and
+Grounding DINO when those scripts were ported; those are pinned below
+too. This doc exists so the next model added to this repo gets the same
+check instead of the gap reappearing.
 
 ## CLIP (ViT-B-32, "openai") -- 05-10
 
@@ -66,6 +68,86 @@ See `14_face_detect.py::MODEL_SHA256` and `ensure_model()`, which now
 refuses to proceed -- on first download or on a pre-existing file -- if
 the sha256 doesn't match.
 
+## MiDaS_small (`intel-isl/MiDaS`, torch.hub) -- 17
+
+Was unpinned; fixed. `torch.hub.load("intel-isl/MiDaS", "MiDaS_small")`
+clones that GitHub repo's default branch. The GitHub repo was renamed to
+`isl-org/MiDaS` (intel-isl still redirects). `17_depth_estimation.py`
+now loads a pinned commit:
+
+```python
+MIDAS_GITHUB = "intel-isl/MiDaS"
+MIDAS_REVISION = "1645b7e1675301fdfac03640738fe5a6531e17d6"  # tag v3_1
+```
+
+Verified 2026-08-19 via `https://api.github.com/repos/isl-org/MiDaS/git/refs/tags/v3_1`.
+The nested `torch.hub.load()` of `rwightman/gen-efficientnet-pytorch`
+inside MiDaS's hubconf is still not pinned from this repo -- same class
+of gap as pyiqa (a library we don't own fetching its own weights). The
+lever we do own is the MiDaS repo ref.
+
+## MSI-Net (`alexanderkroner/MSI-Net`) -- 18
+
+Was unpinned; fixed. `snapshot_download(repo_id=...)` without `revision`
+tracks that Hub repo's `main`. `18_saliency_prediction.py` now passes:
+
+```python
+MODEL_ID = "alexanderkroner/MSI-Net"
+MODEL_REVISION = "d950b35945db961ae63f84bc2b23f6bd578d0b8f"
+```
+
+Verified 2026-08-19 via `curl https://huggingface.co/api/models/alexanderkroner/MSI-Net`.
+
+## YOLOv8n + ViTPose -- 19
+
+Two loads, both were unpinned; both fixed.
+
+**ViTPose** (`usyd-community/vitpose-base-simple`): HF Hub `revision`, same
+pattern as SigLIP.
+
+```python
+VITPOSE_ID = "usyd-community/vitpose-base-simple"
+VITPOSE_REVISION = "a93ac0c67e0b7e2c55287d21d4c460c8f3c54d45"
+```
+
+Verified 2026-08-19 against that repo's API `sha`.
+
+**YOLOv8n**: `YOLO("yolov8n.pt")` downloads whatever file currently sits at
+that name on `ultralytics/assets`' latest GitHub release -- no Hub
+revision, no hash check. Pinned like YuNet: a specific release URL plus
+content hash. See `19_pose_dynamism.py::YOLO_SHA256` and `ensure_yolo()`.
+
+```python
+YOLO_URL = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt"
+YOLO_SHA256 = "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+```
+
+Verified 2026-08-19 by downloading that asset and hashing it.
+
+## OWLv2 (`google/owlv2-base-patch16`) -- 20
+
+Was unpinned; fixed. `20_creature_weapon_owlv2.py` now passes
+`MODEL_REVISION` to both `Owlv2Processor.from_pretrained()` and
+`Owlv2ForObjectDetection.from_pretrained()`:
+
+```python
+MODEL_ID = "google/owlv2-base-patch16"
+MODEL_REVISION = "2a1560802f8cf3c408fec9b809d705f56a2f7146"
+```
+
+Verified 2026-08-19 via `curl https://huggingface.co/api/models/google/owlv2-base-patch16`.
+
+## Grounding DINO (`IDEA-Research/grounding-dino-tiny`) -- 21
+
+Was unpinned; fixed. Same Hub-revision pattern as OWLv2/SigLIP:
+
+```python
+MODEL_ID = "IDEA-Research/grounding-dino-tiny"
+MODEL_REVISION = "a2bb814dd30d776dcf7e30523b00659f4f141c71"
+```
+
+Verified 2026-08-19 via `curl https://huggingface.co/api/models/IDEA-Research/grounding-dino-tiny`.
+
 ## Not pinned here, and why that's fine
 
 - **pyiqa metrics** (clipiqa, musiq, brisque -- `02_iqa_multi_score.py`)
@@ -73,10 +155,10 @@ the sha256 doesn't match.
   library itself from URLs hardcoded per pyiqa release, not something this
   repo's code calls directly. The lever here is the `pyiqa` version in
   `requirements.txt`, not a model_id this repo owns.
-- **Amazon Bedrock** (Nova Pro, in the sibling `poster-corpus-validation`
-  repo's `04_bedrock_ocr.py`): a managed model behind a versioned-looking
-  ID (`us.amazon.nova-pro-v1:0`) that AWS can still update server-side
-  without a client-visible changelog. Not pinnable from the caller's side
-  at all -- see that repo's own docs for what's captured instead
-  (the model_id per output row, as the closest available provenance
-  signal).
+- **Amazon Bedrock Nova Pro** (`us.amazon.nova-pro-v1:0`, scripts 22-24):
+  a managed model behind a versioned-looking ID that AWS can still update
+  server-side without a client-visible changelog. Not pinnable from the
+  caller's side -- each output row records the `model_id` as the closest
+  available provenance signal.
+- **MiDaS nested EfficientNet backbone** (see MiDaS section above): fetched
+  by intel-isl/MiDaS's own hubconf, not by a model_id this repo owns.

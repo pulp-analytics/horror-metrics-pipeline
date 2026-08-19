@@ -47,12 +47,19 @@ python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection +
 python3 scripts/20_creature_weapon_owlv2.py   # creature/weapon: OWLv2 zero-shot detection
 python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO cross-check
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
+make test-fast                               # same as the pytest line above
 
 # optional Nova QA scripts (22/23/24) -- need real AWS/Bedrock access, see below
 python3 scripts/22_creature_weapon_nova_qa.py --boxes data/sample_output/creature_weapon_owlv2.csv --source owlv2 --n 50
 python3 scripts/23_census_nova_qa.py --census data/sample_output/census.csv --n 50
 python3 scripts/24_typography_nova_qa.py --typography data/sample_output/typography.csv --n 50
 ```
+
+GitHub Actions runs `make test-fast` on every push and PR to `main`
+(`.github/workflows/test.yml`). It installs `requirements-ci.txt`, a
+subset of `requirements.txt` that skips tensorflow/pyiqa/ultralytics --
+those are only needed by `@pytest.mark.slow` tests or by `load_*`
+helpers the fast suite never calls.
 
 `18_saliency_prediction.py` (MSI-Net) loads a legacy TF SavedModel that
 crashes under TensorFlow/protobuf's default C++ backend -- the script
@@ -195,9 +202,10 @@ docs/
   METHODOLOGY.md   what's computed and why, per category
   RESULTS.md        real findings, per category
   MODELS.md         every model this repo loads, what it resolves to, and
-                     how tight the version pin is (SigLIP/LAION head by HF
-                     revision, YuNet by sha256, CLIP already pinned by
-                     open_clip itself)
+                     how tight the version pin is (SigLIP/LAION/OWLv2/DINO/
+                     ViTPose/MSI-Net by HF revision, YuNet/YOLOv8n by sha256,
+                     MiDaS by torch.hub GitHub commit, CLIP already pinned
+                     by open_clip itself)
 tests/
   test_color_metrics.py     pure-function tests for the color math
   test_clip_backbone.py     softmax/cosine-similarity math underlying every

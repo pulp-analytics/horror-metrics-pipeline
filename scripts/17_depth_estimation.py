@@ -44,6 +44,11 @@ from utils.resumable import load_done_ids, open_for_append, shard_rows
 
 log = get_logger("depth_estimation")
 
+# intel-isl/MiDaS redirects to isl-org/MiDaS. Pin the GitHub ref torch.hub
+# clones -- without :REF this tracks that repo's default branch. Tag v3_1
+# is commit 1645b7e1675301fdfac03640738fe5a6531e17d6, verified 2026-08-19.
+MIDAS_GITHUB = "intel-isl/MiDaS"
+MIDAS_REVISION = "1645b7e1675301fdfac03640738fe5a6531e17d6"
 FIELDS = ["id", "title", "year", "mean_depth", "p95_depth", "depth_std", "close_area_frac", "error"]
 
 
@@ -55,9 +60,10 @@ def load_midas(device: str):
     # run. Neutralize the trust check outright rather than chase every nested
     # repo through trust_repo plumbing.
     hub._check_repo_is_trusted = lambda *a, **k: None
-    model = hub.load("intel-isl/MiDaS", "MiDaS_small", trust_repo=True)
+    repo = f"{MIDAS_GITHUB}:{MIDAS_REVISION}"
+    model = hub.load(repo, "MiDaS_small", trust_repo=True)
     model.to(device).eval()
-    transforms = hub.load("intel-isl/MiDaS", "transforms", trust_repo=True)
+    transforms = hub.load(repo, "transforms", trust_repo=True)
     return model, transforms.small_transform
 
 

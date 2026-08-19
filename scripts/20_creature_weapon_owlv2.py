@@ -49,6 +49,10 @@ from utils.resumable import load_done_ids, open_for_append, shard_rows
 log = get_logger("creature_weapon_owlv2")
 
 MODEL_ID = "google/owlv2-base-patch16"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-19 via
+# curl https://huggingface.co/api/models/google/owlv2-base-patch16
+# (the "sha" field). Same gap MODELS.md already closed for SigLIP/LAION.
+MODEL_REVISION = "2a1560802f8cf3c408fec9b809d705f56a2f7146"
 MIN_SCORE = 0.2
 MAX_BOXES = 3
 
@@ -74,8 +78,9 @@ FIELDS = ["id", "title", "year",
 def load_owlv2(device: str):
     from transformers import Owlv2ForObjectDetection, Owlv2Processor
 
-    processor = Owlv2Processor.from_pretrained(MODEL_ID)
-    model = Owlv2ForObjectDetection.from_pretrained(MODEL_ID).to(device).eval()
+    processor = Owlv2Processor.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
+    model = Owlv2ForObjectDetection.from_pretrained(
+        MODEL_ID, revision=MODEL_REVISION).to(device).eval()
     return processor, model
 
 

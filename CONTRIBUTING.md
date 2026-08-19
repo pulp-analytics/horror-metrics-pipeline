@@ -7,6 +7,7 @@ Thanks for your interest in contributing.
 1. Fork the repo and create your branch from `main`.
 2. Make your changes, with a clear commit message.
 3. Open a pull request describing what changed and why.
+   CI runs `pytest -m "not slow"` on every push and PR (`make test-fast`).
 4. Link any related issue.
 
 ## Reporting issues

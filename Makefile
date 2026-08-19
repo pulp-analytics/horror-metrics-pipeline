@@ -1,4 +1,4 @@
-.PHONY: setup test color-sample clean
+.PHONY: setup test test-fast color-sample clean
 
 setup:
 	python3 -m venv .venv
@@ -7,6 +7,9 @@ setup:
 
 test:
 	python3 -m pytest tests/ -v
+
+test-fast:
+	python3 -m pytest tests/ -v -m "not slow"
 
 color-sample:
 	python3 scripts/01_color_metrics.py
