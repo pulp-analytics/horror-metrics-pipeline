@@ -607,3 +607,37 @@ stamping "false_positive," it's tracking something real.
 Not wired into `compute_metrics.asl.json` -- see the module docstring
 for why (a QA/spot-check tool, not a pipeline stage), and this needs real
 AWS credentials, unlike every other script in this repo except 23/24.
+
+**At real scale**: the 15-poster run above was a mechanism check, not a
+finding -- too small and deliberately not stratified toward genre
+content. A second run against `data/creature_boxes.json`/
+`weapon_boxes.json`'s real values (130,093 posters with a local poster
+file, every OWLv2 detection the real project ever recorded, not a
+fresh re-run of the model), `--n 1000` (this script's own stratified
+sampling: 60% low-confidence/25% mid/15% high, same as the private
+original), `us.amazon.nova-pro-v1:0`:
+
+| verdict | n | % |
+|---|---:|---:|
+| `false_positive` | 625 | 62.5% |
+| `correct` | 266 | 26.6% |
+| `uncertain` | 109 | 10.9% |
+
+(1 of 1,001 sampled rows errored on a transient failure, excluded above.)
+**62.5% -- this is now a real, precise, reproducible number, not a
+citation of the private project's own prior estimate**, and it lands
+almost exactly on the "~60%+" figure that original run reported. Split
+by kind, creature detections are noisier than weapon:
+
+| kind | n | `false_positive` | `correct` | `uncertain` |
+|---|---:|---:|---:|---:|
+| creature | 661 | 64.9% | 20.0% | 15.1% |
+| weapon | 339 | 57.8% | 39.5% | 2.7% |
+
+Makes sense on reflection: the creature vocabulary includes ambiguous
+categories that overlap with ordinary poster content by construction
+(`vampire`/`zombie`/`masked_killer` can all plausibly just be "a person"
+in a bad crop), where weapon labels (`knife`, `gun`, `chainsaw`) describe
+concrete objects with much less room for a defensible "well, sort of"
+verdict -- consistent with `uncertain` being 5.6x rarer for weapons than
+creatures.

@@ -69,17 +69,35 @@ is the actual signal. See docs/RESULTS.md, "Creature/weapon detection."
 
 `22_creature_weapon_nova_qa.py`, `23_census_nova_qa.py`, and
 `24_typography_nova_qa.py` are Nova Pro vision-LLM QA tools, not pipeline
-stages -- they cross-check a detector/classifier's raw output (20/21, 06,
-08) against an independent judgment on the same poster, the same
-methodology behind the "roughly 60%+ false positives" claim above. These
-are the only three scripts in this repo that need real AWS credentials
-(Bedrock's Nova Pro, `us.amazon.nova-pro-v1:0`) -- set `AWS_PROFILE` to a
-profile with `bedrock:InvokeModel` access. See docs/RESULTS.md's
-"Nova QA" subsections (under "CLIP semantic embeddings" and
-"Creature/weapon detection") for what running them against real posters
-found. Not wired into `compute_metrics.asl.json` in
-poster-analysis-infrastructure -- spot-check tools, not something a
-Step Functions execution runs automatically.
+stages -- they cross-check a detector/classifier's raw output against an
+independent judgment on the same poster, the same methodology behind the
+"roughly 60%+ false positives" claim above. Unlike scripts 01-21, they
+don't compute anything new for the corpus; they grade output that
+already exists. To actually run one:
+
+1. Run the detector/classifier it grades first (its raw output is the
+   `--boxes`/`--census`/`--typography` input these three scripts read):
+   `20`/`21` for `22`, `06_clip_census.py` for `23`,
+   `08_clip_typography_axis.py` for `24`.
+2. Get AWS credentials with `bedrock:InvokeModel` access to
+   `us.amazon.nova-pro-v1:0` in whatever region you pass via `--region`
+   (default `us-east-1`) -- set `AWS_PROFILE` (or any other credential
+   source boto3's default chain picks up). If your account has never
+   called a Nova model before, Bedrock model access has to be enabled
+   once per account/region first (AWS Console -> Bedrock -> Model
+   access) -- an `AccessDeniedException` mentioning the model ID is the
+   usual symptom if that step's still pending, not a bug in these
+   scripts.
+3. Run it: `--n` controls sample size (small for a spot-check, e.g. 50;
+   larger, e.g. 1000+, for a real citable finding -- see
+   docs/RESULTS.md's "Nova QA" subsections for what running these against
+   real posters found, at both scales).
+
+Not wired into `compute_metrics.asl.json` in
+poster-analysis-infrastructure, and never will be -- these are a human
+deciding whether to trust a detector before citing it, the same as the
+private project's own `qa_*.py` scripts never became pipeline stages
+either. No Step Functions execution runs them automatically.
 
 No API key or AWS needed for scripts 01-21 — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
