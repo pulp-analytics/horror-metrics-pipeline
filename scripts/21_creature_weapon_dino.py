@@ -45,6 +45,10 @@ from utils.resumable import load_done_ids, open_for_append, shard_rows
 log = get_logger("creature_weapon_dino")
 
 MODEL_ID = "IDEA-Research/grounding-dino-tiny"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-19 via
+# curl https://huggingface.co/api/models/IDEA-Research/grounding-dino-tiny
+# (the "sha" field). Same gap MODELS.md already closed for SigLIP/LAION.
+MODEL_REVISION = "a2bb814dd30d776dcf7e30523b00659f4f141c71"
 BOX_THRESHOLD = 0.25
 TEXT_THRESHOLD = 0.2
 MAX_BOXES = 3
@@ -85,8 +89,9 @@ def build_prompt(query_map: dict[str, str]) -> tuple[str, dict[str, str]]:
 def load_dino(device: str):
     from transformers import AutoModelForZeroShotObjectDetection, AutoProcessor
 
-    processor = AutoProcessor.from_pretrained(MODEL_ID)
-    model = AutoModelForZeroShotObjectDetection.from_pretrained(MODEL_ID).to(device).eval()
+    processor = AutoProcessor.from_pretrained(MODEL_ID, revision=MODEL_REVISION)
+    model = AutoModelForZeroShotObjectDetection.from_pretrained(
+        MODEL_ID, revision=MODEL_REVISION).to(device).eval()
     return processor, model
 
 

@@ -53,9 +53,11 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import sys
 import time
+import urllib.request
 from pathlib import Path
 
 import numpy as np
@@ -82,14 +84,61 @@ KPT_CONF_THRESHOLD = 0.3
 FIELDS = ["id", "title", "year", "n_persons", "kpt_bbox_area_frac", "limb_asymmetry",
           "mean_kpt_confidence", "box", "keypoints", "error"]
 
+VITPOSE_ID = "usyd-community/vitpose-base-simple"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-19 via
+# curl https://huggingface.co/api/models/usyd-community/vitpose-base-simple
+VITPOSE_REVISION = "a93ac0c67e0b7e2c55287d21d4c460c8f3c54d45"
 
-def load_models():
+# Ultralytics YOLO("yolov8n.pt") otherwise fetches whatever that filename
+# currently is on the assets repo's latest release. Pin the v8.3.0 asset
+# by URL + sha256, same pattern as 14_face_detect.py's YuNet.
+YOLO_URL = "https://github.com/ultralytics/assets/releases/download/v8.3.0/yolov8n.pt"
+YOLO_SHA256 = "f59b3d833e2ff32e194b5bb8e08d211dc7c5bdf144b90d2c8412c47ccfc83b36"
+DEFAULT_YOLO_PATH = "data/models/yolov8n.pt"
+
+
+def _sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as f:
+        for chunk in iter(lambda: f.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def ensure_yolo(path: Path) -> Path:
+    """Download yolov8n.pt if missing and refuse to proceed if the sha256
+    doesn't match YOLO_SHA256 -- on first download or on a pre-existing file."""
+    if path.exists():
+        actual = _sha256(path)
+        if actual != YOLO_SHA256:
+            raise RuntimeError(
+                f"{path} exists but its sha256 ({actual}) doesn't match the pinned "
+                f"YOLO_SHA256 ({YOLO_SHA256}) -- delete it and re-run to re-download "
+                f"a verified copy, don't just ignore this")
+        return path
+    log.info(f"downloading YOLOv8n weights to {path} ...")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    urllib.request.urlretrieve(YOLO_URL, path)
+    actual = _sha256(path)
+    if actual != YOLO_SHA256:
+        path.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"downloaded YOLOv8n weights' sha256 ({actual}) doesn't match the pinned "
+            f"YOLO_SHA256 ({YOLO_SHA256}) -- refusing to use them. Either the upstream "
+            f"file at YOLO_URL changed (update YOLO_SHA256 after checking why) or the "
+            f"download was corrupted/tampered with")
+    log.info("YOLOv8n downloaded and verified (sha256 matches)")
+    return path
+
+
+def load_models(yolo_path: Path | str = DEFAULT_YOLO_PATH):
     from ultralytics import YOLO
     from transformers import AutoProcessor, VitPoseForPoseEstimation
 
-    yolo = YOLO("yolov8n.pt")
-    processor = AutoProcessor.from_pretrained("usyd-community/vitpose-base-simple")
-    model = VitPoseForPoseEstimation.from_pretrained("usyd-community/vitpose-base-simple").eval()
+    yolo = YOLO(str(ensure_yolo(Path(yolo_path))))
+    processor = AutoProcessor.from_pretrained(VITPOSE_ID, revision=VITPOSE_REVISION)
+    model = VitPoseForPoseEstimation.from_pretrained(
+        VITPOSE_ID, revision=VITPOSE_REVISION).eval()
     return yolo, processor, model
 
 

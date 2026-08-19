@@ -1,0 +1,13 @@
+# Subset of requirements.txt needed by `pytest -m "not slow"`.
+# Skips tensorflow / pyiqa / open_clip / ultralytics -- those are only
+# imported inside load_* helpers or the @pytest.mark.slow tests.
+numpy>=1.26
+pandas>=2.1
+requests>=2.31
+Pillow>=10.0
+scikit-learn>=1.3
+pytest>=7.4
+opencv-python>=4.8
+torch>=2.1
+transformers>=4.40
+huggingface_hub>=0.20

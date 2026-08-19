@@ -67,6 +67,11 @@ from utils.resumable import load_done_ids, open_for_append, shard_rows
 
 log = get_logger("saliency_prediction")
 
+MODEL_ID = "alexanderkroner/MSI-Net"
+# Pinned to the HF Hub repo's current commit, verified 2026-08-19 via
+# curl https://huggingface.co/api/models/alexanderkroner/MSI-Net
+# (the "sha" field). snapshot_download() without revision tracks main.
+MODEL_REVISION = "d950b35945db961ae63f84bc2b23f6bd578d0b8f"
 FIELDS = ["id", "title", "year", "peak_x", "peak_y", "top10pct_mass", "mean_saliency", "error"]
 
 
@@ -74,7 +79,7 @@ def load_msinet():
     import tensorflow as tf
     from huggingface_hub import snapshot_download
 
-    hf_dir = snapshot_download(repo_id="alexanderkroner/MSI-Net")
+    hf_dir = snapshot_download(repo_id=MODEL_ID, revision=MODEL_REVISION)
     # Low-level loader, not tf.keras.layers.TFSMLayer -- see module
     # docstring: the crash this works around isn't Keras-specific, it's
     # triggered by restoring this SavedModel's graph at all under
