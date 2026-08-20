@@ -21,8 +21,9 @@ PYTHON ?= python3
 
 setup:
 	python3 -m venv .venv
-	.venv/bin/pip install -r requirements.txt
+	.venv/bin/pip install -e ".[cpu]"
 	@echo "Now: source .venv/bin/activate"
+	@echo "Also need 18? pip install -e '.[tf-saliency]'. Nova/S3? pip install -e '.[bedrock]'"
 
 test:
 	python3 -m pytest tests/ -v
