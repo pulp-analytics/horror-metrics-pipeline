@@ -43,6 +43,7 @@ import torch
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
+from utils.device import add_device_arg, pick_device
 from utils.logging_setup import get_logger
 from utils.posters import add_poster_source_args, fetch_poster_file
 from utils.resumable import load_done_ids, open_for_append, shard_rows
@@ -158,11 +159,12 @@ def main():
     ap.add_argument("--in", dest="in_path", default="data/sample_input/sample_100_posters.csv")
     ap.add_argument("--out", default="data/sample_output/creature_weapon_owlv2.csv")
     add_poster_source_args(ap)
+    add_device_arg(ap)
     ap.add_argument("--shard-index", type=int, default=0)
     ap.add_argument("--shard-count", type=int, default=1, help="split --in across N parallel shards (default 1: no sharding)")
     args = ap.parse_args()
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    device = pick_device(args.device)
     log.info(f"device={device}")
     processor, model = load_owlv2(device)
     log.info(f"{MODEL_ID} loaded")

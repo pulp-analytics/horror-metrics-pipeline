@@ -134,6 +134,12 @@ can optionally check S3 first (`--posters-s3-bucket`, matching the real
 project's own storage pattern) before falling back to TMDB — entirely
 optional, off by default.
 
+`17_depth_estimation.py`, `19_pose_dynamism.py`, `20_creature_weapon_owlv2.py`,
+and `21_creature_weapon_dino.py` pick a torch device with `cuda` > `mps` >
+`cpu` (`--device` to override). On Apple Silicon that means Metal instead
+of the CPU fallback that made the 99-poster Grounding DINO sample take
+~27 minutes. `18_saliency_prediction.py` is TensorFlow, not torch.
+
 Not tied to horror specifically: `01_color_metrics.py` has no
 genre-specific logic and was verified live against a real, non-horror
 (sci-fi) sample with zero code changes — see "Genre-agnostic, verified"
@@ -216,6 +222,7 @@ scripts/
                                       helper, used by 06/07/08/09
     siglip_backbone.py               shared SigLIP model loading + text-prototype
                                       helper, used by 12/13
+    device.py                        cuda > mps > cpu for 17/19/20/21
 data/
   sample_input/    99 real posters, stratified by decade (1920s-2020s)
   sample_output/   real, already-computed metrics for those same posters
@@ -245,6 +252,7 @@ tests/
   test_makefile_sample.py   `make sample` dry-run: 05 before 06-09, 20+21
                              before 25, Nova QA not in the graph, no-op when
                              the checked-in CSVs already exist
+  test_device.py            cuda > mps > cpu pick, including --device override
 ```
 
 ## License
