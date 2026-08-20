@@ -1,4 +1,4 @@
-# Poster-metrics-pipeline: local entry points.
+# Poster-metrics-pipeline: sample CSVs + pytest.
 #
 # `make sample` fills in *missing* files under OUT (default:
 # data/sample_output). If the CSV already exists, there is no recipe --

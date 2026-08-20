@@ -27,7 +27,7 @@ Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
 [RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
 
 - [Where this runs](#where-this-runs)
-- [Quickstart](#quickstart)
+- [Tests and the checked-in sample](#tests-and-the-checked-in-sample)
 - [Join into one table](#joining-the-outputs-into-one-table)
 - [Structure](#structure)
 - [Contributing](CONTRIBUTING.md)
@@ -58,76 +58,46 @@ that compute environment to EC2 (`g4dn` / `g5`) and add GPU
 the rest are `cuda` if `torch.cuda.is_available()`). Nothing in *this*
 repo turns GPU on or off.
 
-`make sample` and `pip install -e ".[cpu]"` below are for developing and
-for the checked-in 99-poster sample. The extra name `[cpu]` means "no
+`make sample` and `pip install -e ".[cpu]"` exist so CI and contributors
+can rebuild the checked-in 99-poster CSVs under `data/sample_output/` --
+not as a second way to score the corpus. The extra name `[cpu]` means "no
 TensorFlow, no boto3" — not "this pipeline is CPU-only." Nova QA (22/23/24)
 is not a Step Functions state. `25` is a no-model join of 20+21 (cite that
 CSV); it is not currently a state in `compute_metrics.asl.json`.
 
-## Quickstart
+## Tests and the checked-in sample
 
-Local development and the checked-in 99-poster sample. Corpus-scale runs
-go through [Where this runs](#where-this-runs).
+CI (`make test-fast`) and the 99-poster CSVs under `data/sample_output/`.
+Corpus-scale scoring is [Where this runs](#where-this-runs). Script
+catalog is [Structure](#structure).
 
 ```bash
-pip install -e ".[cpu]"                   # 01-17, 19-21, 25 (no TensorFlow, no AWS)
+pip install -e .                          # extra-free, what CI installs
+make test-fast                            # pytest -m "not slow"
+# pip install -e ".[cpu]"                 # plus pyiqa + ultralytics (02/03/19)
 # pip install -e ".[cpu,tf-saliency]"     # plus 18 MSI-Net
-# pip install -e ".[all]"                 # plus Nova QA / optional S3 poster cache
-make sample                               # 01-21 + 25, in dependency order; skips files that already exist
+make sample                               # fill *missing* CSVs under data/sample_output/
 # rebuild one metric: delete its CSV, then make sample
-python3 scripts/01_color_metrics.py       # or run one script: color: CIELAB + k-means palette
-python3 scripts/02_iqa_multi_score.py         # quality: clipiqa/musiq/brisque
-python3 scripts/03_nima_score.py              # quality: NIMA aesthetic score
-python3 scripts/04_laion_aesthetic_score.py   # quality: LAION aesthetic predictor
-python3 scripts/05_clip_embed.py              # CLIP: build the embedding cache first
-python3 scripts/06_clip_census.py             # CLIP: zero-shot creature/monster census
-python3 scripts/07_clip_fear_axis.py          # CLIP: dread<->calm axis
-python3 scripts/08_clip_typography_axis.py    # CLIP: ornate<->minimal lettering axis
-python3 scripts/09_clip_genre_classifier.py   # CLIP: zero-shot genre agreement
-python3 scripts/10_clip_medium.py             # CLIP: painted-vs-photographic
-python3 scripts/11_siglip_embed.py            # SigLIP: build its own embedding cache
-python3 scripts/12_siglip_fear_axis.py        # SigLIP: dread<->calm axis
-python3 scripts/13_siglip_reanalysis.py       # SigLIP: census + typography + genre
-python3 scripts/14_face_detect.py             # faces: YuNet detection (local, no AWS)
-python3 scripts/15_face_expression.py         # faces: CLIP zero-shot expression per face
-python3 scripts/16_geometric_composition.py   # composition: symmetry/grid/balance/diagonal (local, no AWS)
-python3 scripts/17_depth_estimation.py        # depth: MiDaS monocular depth (torch.hub, first run downloads weights)
-python3 scripts/18_saliency_prediction.py     # saliency: MSI-Net eye-tracking prediction (huggingface_hub, first run downloads weights)
-python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection + ViTPose skeleton
-python3 scripts/20_creature_weapon_owlv2.py   # creature/weapon: OWLv2 zero-shot detection
-python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO cross-check
-python3 scripts/25_creature_weapon_agreement.py  # creature/weapon: OWLv2 ∩ DINO (the citable signal)
-python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
-make test-fast                               # same as the pytest line above
 ```
 
-`make sample` is the dependency graph the individual script lines above
-encode by hand: 05 before 06-09, 11 before 12-13, 14 before 15, 20 and 21
-before 25. It fills in missing files under `data/sample_output/` and is a
-no-op on a clone that already has the checked-in CSVs (CLIP/SigLIP `.npz`
-caches are *not* committed; they are only rebuilt when a CSV that needs
-them is itself missing). Nova QA (22/23/24) is not in `make sample`.
-Override paths with `IN=... OUT=...`. Independent scripts can run in
-parallel: `make -j4 sample`.
-
-```bash
-# optional Nova QA scripts (22/23/24) -- need real AWS/Bedrock access, see below
-python3 scripts/22_creature_weapon_nova_qa.py --boxes data/sample_output/creature_weapon_owlv2.csv --source owlv2 --n 50
-python3 scripts/23_census_nova_qa.py --census data/sample_output/census.csv --n 50
-python3 scripts/24_typography_nova_qa.py --typography data/sample_output/typography.csv --n 50
-```
+`make sample` is the same 01–21 + 25 dependency graph Batch uses (05
+before 06–09, 11 before 12–13, 14 before 15, 20 and 21 before 25). On a
+clone that already has the checked-in CSVs it is a no-op (CLIP/SigLIP
+`.npz` caches are *not* committed). Nova QA (22/23/24) is not in the
+graph. Override paths with `IN=... OUT=...`. Independent scripts can run
+in parallel: `make -j4 sample`.
 
 GitHub Actions runs `make test-fast` on every push and PR to `main`
 (`.github/workflows/test.yml`). It installs the default extra-free
 dependencies (`pip install -e .` / `requirements-ci.txt`): no
 tensorflow, pyiqa, ultralytics, or boto3 -- those are only needed by
 `18`, `02`/`03`, `19`, and Nova QA/`--posters-s3-bucket` respectively,
-or by `@pytest.mark.slow` tests. `pip install -e ".[cpu]"` is the
-**local** extra (no TensorFlow, no boto3); `".[all]"` matches the old
+or by `@pytest.mark.slow` tests. `pip install -e ".[cpu]"` adds pyiqa
+and ultralytics (no TensorFlow, no boto3); `".[all]"` matches the old
 flat `requirements.txt`. Production installs whatever
 `docker/Dockerfile.metrics` in poster-analysis-infrastructure pins.
 Lower bounds live in `pyproject.toml`. There is no platform lock file:
-torch wheels differ across macOS / CPU Linux / CUDA, so a single
+torch wheels differ across CPU Linux / CUDA, so a single
 `uv.lock` / `pip freeze` would lie to the other two.
 
 `18_saliency_prediction.py` (MSI-Net) loads a legacy TF SavedModel that
@@ -191,10 +161,9 @@ project's own storage pattern) before falling back to TMDB — entirely
 optional, off by default.
 
 `17_depth_estimation.py`, `19_pose_dynamism.py`, `20_creature_weapon_owlv2.py`,
-and `21_creature_weapon_dino.py` pick a torch device with `cuda` > `mps` >
-`cpu` (`--device` to override). On a CUDA Batch/EC2 worker that is GPU;
-on Apple Silicon (local sample) that is Metal. `18_saliency_prediction.py`
-is TensorFlow, not torch.
+and `21_creature_weapon_dino.py` pick `cuda` if present else `cpu`
+(`--device` to override). `18_saliency_prediction.py` is TensorFlow, not
+torch.
 
 Not tied to horror specifically: `01_color_metrics.py` has no
 genre-specific logic and was verified live against a real, non-horror
@@ -282,7 +251,7 @@ scripts/
                                       helper, used by 06/07/08/09
     siglip_backbone.py               shared SigLIP model loading + text-prototype
                                       helper, used by 12/13
-    device.py                        cuda > mps > cpu for 17/19/20/21
+    device.py                        cuda > cpu for 17/19/20/21
 data/
   sample_input/    99 real posters, stratified by decade (1920s-2020s)
   sample_output/   real, already-computed metrics for those same posters
@@ -310,7 +279,7 @@ tests/                             `make test-fast` = pytest -m "not slow"
   test_creature_weapon_nova_qa.py   22: load_detections / pick_sample
   test_creature_weapon_owlv2.py     20: filter_boxes
   test_depth_estimation.py          17: min-max closeness (slow: live MiDaS)
-  test_device.py                    cuda > mps > cpu
+  test_device.py                    cuda > cpu
   test_face_expression.py           15: crop/box geometry
   test_geometric_composition.py     16: OpenCV heuristics
   test_makefile_sample.py           make sample graph; Nova not in it
