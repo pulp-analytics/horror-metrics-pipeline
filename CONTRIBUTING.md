@@ -67,7 +67,7 @@ Do:
 - Pin any new model in [docs/MODELS.md](docs/MODELS.md).
 - Document columns in SCHEMA and the why in
   [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Semantic metrics must
-  stay compatible with the three trust layers (deterministic or
+  stay compatible with the three validation layers (deterministic or
   reproducible compute, second model / Nova on a sample after prompt
   iteration, human `--validate` / cite decision). Check in a sample CSV
   under `data/sample_output/` and keep

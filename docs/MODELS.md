@@ -161,6 +161,6 @@ Verified 2026-08-19 via `curl https://huggingface.co/api/models/IDEA-Research/gr
   caller's side -- each output row records the `model_id` as the closest
   available provenance signal. Calls use `temperature: 0`. The prompts
   in those scripts are the settled text after several runs; see
-  [METHODOLOGY, "How we trust a metric"](METHODOLOGY.md#how-we-trust-a-metric).
+  [METHODOLOGY, "Validation methodology"](METHODOLOGY.md#validation-methodology).
 - **MiDaS nested EfficientNet backbone** (see MiDaS section above): fetched
   by intel-isl/MiDaS's own hubconf, not by a model_id this repo owns.

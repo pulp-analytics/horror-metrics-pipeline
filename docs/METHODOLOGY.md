@@ -6,7 +6,7 @@ file is the why, that one is the contract. Findings and reproduction
 tables live in [RESULTS.md](RESULTS.md). Model pins live in
 [MODELS.md](MODELS.md).
 
-## How we trust a metric
+## Validation methodology
 
 Three layers. Not every category uses all three. A number is citable
 when the layers that apply have been crossed, not when a single model
@@ -41,12 +41,14 @@ In poster-analysis-infrastructure this sampled pass belongs in
 `compute_metrics.asl.json` after the metric it grades; that state is
 not in the ASL yet.
 
-**3. Human review.** Someone looked at famous posters and recorded
+**3. Human ground truth.** Someone looked at famous posters and recorded
 expected labels (`--validate` on census, faces, fear and typography
 axes). Someone reads Nova's `reason` / `actual` on disagreements and
 decides whether the metric is citable (cite `25`, not 20 alone; do not
 rewrite `06`'s `uncertain` to match Nova). The human does not relabel
-the corpus; they decide whether to trust the detector.
+the corpus. This is the same layer as poster-corpus-validation's blind
+reviews, not the same tooling: no HTML review pages and no 2,500-row
+`ground_truth/` dump here. Genre-vs-IMDb skips this leg (catalog tags).
 
 ## Color metrics
 
@@ -621,7 +623,7 @@ detection."
 
 ## Nova QA (22 / 23 / 24)
 
-Layer 2 of [How we trust a metric](#how-we-trust-a-metric): a vision-LLM
+Layer 2 of [Validation methodology](#validation-methodology): a vision-LLM
 cross-check of semantic output that already exists, plus layer 3 (a
 human reading disagreements). Same role the private project's `qa_*.py`
 scripts never graduated into Step Functions for -- here they are the

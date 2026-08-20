@@ -613,7 +613,7 @@ could only be taken on faith. `22_creature_weapon_nova_qa.py` ports it:
 draws the detected box in red on the poster, asks Nova Pro whether it's
 really there. The prompt in that script is the settled text after
 several Bedrock runs; we did not cite a rate from one pass. See
-docs/METHODOLOGY.md, "How we trust a metric."
+docs/METHODOLOGY.md, "Validation methodology."
 
 Live run, 29 real OWLv2 detections (15 posters spanning multiple genres,
 not exclusively horror -- see caveat below), `us.amazon.nova-pro-v1:0`:
@@ -644,7 +644,7 @@ motif at 0.456; *Mars Attacks!* → real `"zombie"`/alien imagery at
 stamping "false_positive," it's tracking something real.
 
 Not in `compute_metrics.asl.json` yet -- sampled methodology, see
-README "How we trust a metric." Needs Bedrock credentials, unlike
+README "Validation methodology." Needs Bedrock credentials, unlike
 01–21 / 25.
 
 **At real scale**: the 15-poster run above was a mechanism check, not a

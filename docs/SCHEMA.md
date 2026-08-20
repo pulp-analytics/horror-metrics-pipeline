@@ -218,7 +218,7 @@ No `error` on 25 (it's a join). `--min-iou` default 0.3.
 
 ## Nova QA -- sampled methodology, not metric CSVs
 
-Layer 2–3 of [METHODOLOGY, "How we trust a metric"](METHODOLOGY.md#how-we-trust-a-metric).
+Layer 2–3 of [METHODOLOGY, "Validation methodology"](METHODOLOGY.md#validation-methodology).
 The prompts in `22`/`23`/`24` are settled after several Bedrock runs;
 do not treat a one-shot QA CSV as the citable finding.
 

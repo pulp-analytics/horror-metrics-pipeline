@@ -27,7 +27,7 @@ Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
 [RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
 
 - [Where this runs](#where-this-runs)
-- [How we trust a metric](#how-we-trust-a-metric)
+- [Validation methodology](#validation-methodology)
 - [Quickstart](#quickstart)
 - [Join into one table](#joining-the-outputs-into-one-table)
 - [Structure](#structure)
@@ -62,58 +62,61 @@ repo turns GPU on or off.
 `make sample` and `pip install -e ".[cpu]"` below are for developing and
 for the checked-in 99-poster sample. The extra name `[cpu]` means "no
 TensorFlow, no boto3" — not "this pipeline is CPU-only." Nova QA (22/23/24)
-is methodology ([How we trust a metric](#how-we-trust-a-metric)): a sampled
+is methodology ([Validation methodology](#validation-methodology)): a sampled
 Bedrock pass, intended as a Step Functions state, not in the ASL yet.
 `25` is a no-model join of 20+21 (cite that CSV); it is not currently a
 state in `compute_metrics.asl.json` either.
 
-## How we trust a metric
+## Validation methodology
 
-Three layers. A number is citable when the layers that apply have been
-crossed, not when a single model said so. Full write-up:
-[METHODOLOGY](docs/METHODOLOGY.md#how-we-trust-a-metric). Tables:
-[RESULTS](docs/RESULTS.md) "Nova QA."
+Same three-layer check as the sibling
+[poster-corpus-validation](https://github.com/pulp-analytics/poster-corpus-validation)
+(`README.md`, "Validation methodology") before a number is trusted, not
+just built and assumed correct. Not every metric uses all three.
+Details: [METHODOLOGY](docs/METHODOLOGY.md#validation-methodology).
+Tables: [RESULTS](docs/RESULTS.md) "Nova QA."
 
-**1. Deterministic.** Same poster file → same CSV: color (`01`),
-composition (`16`), YuNet (`14`), and the small CNNs (depth, saliency).
-Quality scores and pose are neural but continuous — re-run, not Nova.
+1. **Deterministic first, where one exists.** Pixel math and small CNNs
+   that re-run identically on the same file: color (`01`), composition
+   (`16`), YuNet (`14`), depth, saliency. Quality scores and pose are
+   neural but continuous — re-run, not a vision-LLM. There is no "Nova,
+   is this L* right?" question, so those categories stop here.
 
-**2. Second model / Nova Pro.** Semantic calls (CLIP census, typography
-register, creature/weapon boxes) over-detect on purpose. We cross them
-with something that is not the same model: `20` ∩ `21` → `25`, and
-Nova Pro (`22`/`23`/`24`) on a **sample**. Prompts are pinned in those
-scripts (`temperature: 0`), settled after several Bedrock runs and
-prompt revisions. Each prompt asks for Nova's own judgment; the
-CLIP/detector guess is context, not an instruction to agree.
+2. **Vision-LLM cross-check (Amazon Nova Pro).** Semantic calls (CLIP
+   census, typography register, creature/weapon boxes) over-detect on
+   purpose. We cross them with something that is not the same model:
+   `20` ∩ `21` → `25`, and Nova Pro (`22`/`23`/`24`) on a **sample**.
+   Prompts are pinned in those scripts (`temperature: 0`), settled after
+   several Bedrock runs and prompt revisions — isolated prompts, not a
+   combined mega-prompt. Each asks for Nova's own judgment; the
+   CLIP/detector guess is context, not an instruction to agree.
 
-| script | prompt (settled in the file) | live finding |
-|---|---|---|
-| `22` | red box: is `"{label}"` really there? (`correct` / `false_positive` / `uncertain`) | n=1000 OWLv2: **62.5% false_positive** (the citable rate; a 15-poster mechanism check hit 79% because the sample was not horror-stratified) |
-| `23` | one census label or `none` (never `uncertain`) | 40 posters: 8/40 exact string vs CLIP — mostly CLIP `uncertain` vs Nova `none` |
-| `24` | title lettering: ornate → minimal (5 registers) | 40 posters: 75% exact register, 97.5% ±1 |
+   | script | prompt (settled in the file) | live finding |
+   |---|---|---|
+   | `22` | red box: is `"{label}"` really there? (`correct` / `false_positive` / `uncertain`) | n=1000 OWLv2: **62.5% false_positive** (citable; a 15-poster mechanism check hit 79% on a non-horror-stratified sample) |
+   | `23` | one census label or `none` (never `uncertain`) | 40 posters: 8/40 exact string vs CLIP — mostly CLIP `uncertain` vs Nova `none` |
+   | `24` | title lettering: ornate → minimal (5 registers) | 40 posters: 75% exact register, 97.5% ±1 |
 
-Raw `qa_*.csv` from those runs are **not** in the repo. The tables in
-RESULTS are the citable record. Re-running the scripts needs Bedrock
-(`us.amazon.nova-pro-v1:0`).
+   Raw `qa_*.csv` from those runs are **not** in this repo. RESULTS is
+   the citable record. Re-running needs Bedrock (`us.amazon.nova-pro-v1:0`).
+   Nova belongs in `compute_metrics.asl.json` as a sampled `--n` state
+   after the metric it grades; that state is **not in the ASL yet**.
+   `make sample` stays Bedrock-free.
 
-**3. Human.** `--validate` sets on famous posters (someone looked at the
-art). Then someone reads Nova's `reason` / `actual` on disagreements
-and decides what to cite (`25`, not 20 alone; do not rewrite `06`'s
-`uncertain` to match Nova). The human does not relabel the corpus.
+3. **Human ground truth.** `--validate` sets on famous posters (someone
+   looked at the artwork). Then someone reads Nova's `reason` / `actual`
+   on disagreements and decides what to cite (`25`, not 20 alone; do not
+   rewrite `06`'s `uncertain` to match Nova). The human does not relabel
+   the corpus. This repo does **not** ship the sibling's blind HTML
+   review pages (`scripts/qa/build_*_review_page.py`) or its 2,500+
+   `data/ground_truth/` rows. Genre-vs-IMDb
+   (`scripts/qa/validate_genre_classifier_vs_imdb.py`) uses curated
+   catalog tags, so it skips the human-review leg — the same exception
+   the sibling makes for IMDb `isAdult`.
 
-Nova is part of the method, not an optional sidecar. In
-poster-analysis-infrastructure it belongs in
-`compute_metrics.asl.json` as a **sampled** state after the metric it
-grades (`23` after `06`, `24` after `08`, `22` after `20`/`21`): `--n`
-on the order of 50 (spot-check) to 1000+ (citable), never a 145k loop,
-never writing into the metric CSVs. That state is **not in the ASL
-yet** — adding it is an infra change (Bedrock IAM, cost). `make sample`
-stays Bedrock-free on purpose.
-
-To run a sampled pass here: extra `[bedrock]`, credentials with
-`bedrock:InvokeModel` on `us.amazon.nova-pro-v1:0`, then `22`/`23`/`24`
-with `--n`. They grade CSVs that already exist (`--boxes` / `--census`
-/ `--typography`).
+To run a sampled Nova pass: extra `[bedrock]`, `bedrock:InvokeModel` on
+`us.amazon.nova-pro-v1:0`, then `22`/`23`/`24` with `--n` against CSVs
+that already exist (`--boxes` / `--census` / `--typography`).
 
 ## Quickstart
 
@@ -158,7 +161,7 @@ before 25. It fills in missing files under `data/sample_output/` and is a
 no-op on a clone that already has the checked-in CSVs (CLIP/SigLIP `.npz`
 caches are *not* committed; they are only rebuilt when a CSV that needs
 them is itself missing). Nova QA (22/23/24) is not in `make sample`
-(Bedrock; see [How we trust a metric](#how-we-trust-a-metric)).
+(Bedrock; see [Validation methodology](#validation-methodology)).
 Override paths with `IN=... OUT=...`. Independent scripts can run in
 parallel: `make -j4 sample`.
 
@@ -189,7 +192,7 @@ as a candidate, not a verdict. `25_creature_weapon_agreement.py` is the
 join that materializes that signal (same label + box IoU) into
 `creature_weapon_agreement.csv` -- cite that file, not 20 or 21 alone.
 See docs/RESULTS.md, "Creature/weapon detection." Nova's role in that
-~62.5% figure is [How we trust a metric](#how-we-trust-a-metric).
+~62.5% figure is [Validation methodology](#validation-methodology).
 
 The Python for 01-21 and 25 does not call AWS ML APIs — posters come from
 TMDB's public image CDN (optional `--posters-s3-bucket`). Production still
@@ -244,6 +247,7 @@ poster (one per detected face). Column names, units, and sentinels
 
 ```
 Makefile                           `make sample` / `make test-fast` / `make assemble-sample`
+assemble_master_dataset.py         join per-metric CSVs (not a metric stage)
 CONTRIBUTING.md                    invariants (one poster at a time; Nova is sampled QA)
 pyproject.toml                     extras: cpu / tf-saliency / bedrock
 scripts/
@@ -287,6 +291,10 @@ scripts/
                                   agree maps CLIP uncertain → none
   24_typography_nova_qa.py       Nova Pro QA of 08's CLIP typography axis --
                                   sampled methodology
+  qa/
+    validate_genre_classifier_vs_imdb.py  09 vs IMDb genres -- catalog GT,
+                                  not a pipeline stage (skips human-review
+                                  leg; see Validation methodology)
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
@@ -305,6 +313,8 @@ data/
                     (CLIP/SigLIP .npz caches are generated on demand by
                     05/11, not committed -- see docs/RESULTS.md for what's
                     verified to reproduce exactly vs. what isn't, and why)
+  ground_truth/    genre-vs-IMDb sample + results (catalog tags, not blind
+                    poster review -- see Validation methodology)
 docs/
   METHODOLOGY.md   what's computed and why, per category
   SCHEMA.md         column names, units, sentinels -- the CSV contract
