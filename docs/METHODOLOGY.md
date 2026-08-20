@@ -6,6 +6,48 @@ file is the why, that one is the contract. Findings and reproduction
 tables live in [RESULTS.md](RESULTS.md). Model pins live in
 [MODELS.md](MODELS.md).
 
+## Validation methodology
+
+Three layers. Not every category uses all three. A number is citable
+when the layers that apply have been crossed, not when a single model
+said so.
+
+**1. Deterministic compute.** Pixel math and small CNNs that re-run
+identically on the same file: color (`01`), geometric composition
+(`16`), YuNet faces (`14`), MSI-Net saliency (`18`), MiDaS depth (`17`)
+once the image bytes are fixed. Verification is reproduction (same
+poster → same CSV), in [RESULTS.md](RESULTS.md). There is no "Nova, is
+this L* right?" question, so these categories stop here. Quality scores
+(`02`/`03`/`04`) and pose (`19`) are neural but continuous -- same
+rule: re-run, not a vision-LLM.
+
+**2. A second model, including a vision-LLM.** Semantic calls (what is
+in the poster, lettering style, is this box a creature) are zero-shot
+CLIP/SigLIP or open-vocabulary detectors. They over-detect on purpose.
+We cross them with something that is not the same model:
+
+- two independent detectors and a join (`20` ∩ `21` → `25`)
+- Nova Pro (`22` / `23` / `24`) on a sample of the same posters. The
+  prompt in each script asks for Nova's own judgment; the CLIP or
+  detector guess is context, not an instruction to agree.
+
+Nova is not a per-poster metric and does not write columns into the
+metric CSVs. We ran Bedrock more than once (small mechanism checks, then
+`--n 1000` where we cite a rate) and iterated the prompts now pinned in
+those three scripts until the JSON verdicts tracked real posters instead
+of rubber-stamping. Calls use `temperature: 0`; remaining variance is
+which posters `--n` draws. Numbers: [RESULTS.md](RESULTS.md) "Nova QA."
+In poster-analysis-infrastructure this sampled pass belongs in
+`compute_metrics.asl.json` after the metric it grades; that state is
+not in the ASL yet.
+
+**3. Human ground truth.** Blind review pages in `scripts/qa/build_*_review_page.py`
+(same pattern as poster-corpus-validation): poster + question, never
+CLIP/Nova scores. Generated HTML is gitignored. `--validate` sets on
+famous posters remain a small in-script check. Genre-vs-IMDb skips this
+leg (catalog tags). Cite `25`, not 20 alone; do not rewrite `06`'s
+`uncertain` to match Nova.
+
 ## Color metrics
 
 ### What gets computed, per poster
@@ -579,14 +621,22 @@ detection."
 
 ## Nova QA (22 / 23 / 24)
 
-Not pipeline stages. They grade output that already exists -- the same
-role the private project's `qa_*.py` scripts never graduated into
-Step Functions for. They need Bedrock (`us.amazon.nova-pro-v1:0`) and
-are deliberately absent from `make sample` and from
-`compute_metrics.asl.json`. Composition / depth / saliency / pose are
-continuous geometric measurements; there is no comparable "Nova, is
-this number right?" question, which is why those categories have no QA
-script.
+Layer 2 of [Validation methodology](#validation-methodology): a vision-LLM
+cross-check of semantic output that already exists, plus layer 3 (a
+human reading disagreements). Same role the private project's `qa_*.py`
+scripts never graduated into Step Functions for -- here they are the
+sampled methodology layer and belong in `compute_metrics.asl.json` as
+a `--n` state, which is not in the ASL yet. They need Bedrock
+(`us.amazon.nova-pro-v1:0`) and stay out of `make sample`. Composition / depth /
+saliency / pose are continuous geometric measurements; there is no
+comparable "Nova, is this number right?" question, which is why those
+categories have no QA script.
+
+The `PROMPT` constants in `22`/`23`/`24` are the settled text after
+several Bedrock runs and prompt revisions. A single pass was not enough
+to trust the cross-check. Live figures in RESULTS come from those
+repeated runs (mechanism check, then a larger `--n`), not from one
+shot. `temperature` is 0 on every call.
 
 - **`22_creature_weapon_nova_qa.py`** -- draws a detected box in red,
   asks whether that rectangle actually contains the predicted
@@ -604,8 +654,8 @@ script.
   scoring. `agree_adjacent` is ±1 register.
 
 Sample size `--n` is a spot-check at 50 and a citable finding at
-1000+. Not shardable: these are a human deciding whether to trust a
-detector, not a per-poster metric loop.
+1000+. Not shardable: a human is deciding whether to trust a detector,
+not looping a per-poster metric.
 
 ### What this repo does NOT compute
 

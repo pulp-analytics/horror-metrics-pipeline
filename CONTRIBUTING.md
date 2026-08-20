@@ -38,9 +38,13 @@ batch are presentation logic. They do not belong in `01`–`21` or `25`.
 
 Do not:
 
-- Wire `22`/`23`/`24` into `make sample` or into
-  `compute_metrics.asl.json` in poster-analysis-infrastructure. Nova QA
-  is a human spot-check, not a pipeline stage.
+- Wire `22`/`23`/`24` into `make sample` (no Bedrock in that graph) or
+  run them as a 145k per-poster loop. They are sampled methodology
+  (`--n` 50–1000+), intended as Step Functions states in
+  `compute_metrics.asl.json`, and must not write into the metric CSVs.
+  That ASL state is not there yet — add it in
+  poster-analysis-infrastructure, not by treating Nova as Rekognition
+  for the whole corpus.
 - Cite `creature_weapon_owlv2.csv` or `creature_weapon_dino.csv` as
   ground truth. The citable file is `creature_weapon_agreement.csv`
   (`25`).
@@ -62,7 +66,11 @@ Do:
   exception: one row per face). Declare `FIELDS` in the script.
 - Pin any new model in [docs/MODELS.md](docs/MODELS.md).
 - Document columns in SCHEMA and the why in
-  [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Check in a sample CSV
+  [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Semantic metrics must
+  stay compatible with the three validation layers (deterministic or
+  reproducible compute, second model / Nova on a sample after prompt
+  iteration, human `--validate` / blind HTML review pages / cite
+  decision). Check in a sample CSV
   under `data/sample_output/` and keep
   `tests/test_schema_contract.py` green.
 - Test pure functions without model downloads. `@pytest.mark.slow` is

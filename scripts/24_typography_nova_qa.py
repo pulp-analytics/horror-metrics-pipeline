@@ -27,6 +27,9 @@ access (Bedrock's Nova Pro). Deliberately NOT wired into
 compute_metrics.asl.json -- a QA tool for spot-checking 08's output, not
 a per-poster metric-producing stage.
 
+The `PROMPT` below is the settled text after several Bedrock runs and
+prompt revisions.
+
   export AWS_PROFILE=sandbox_bedrock
   python3 24_typography_nova_qa.py --in data/sample_input/sample_100_posters.csv --typography data/sample_output/typography.csv --n 50
 

@@ -44,8 +44,9 @@ CLIP/SigLIP embedding caches (`clip_embeddings.npz`,
 `siglip_embeddings.npz`) are not CSVs: arrays `ids` and `vecs`
 (float16, L2-normalized). They are generated on demand, not committed.
 
-Nova QA outputs (`qa_*.csv`) are not in `data/sample_output/` and are
-not pipeline stages.
+Nova QA outputs (`qa_*.csv`) are not in `data/sample_output/`. They are
+sampled methodology (a Step Functions `--n` state, not in the ASL yet),
+not metric CSVs.
 
 ## Corpus list
 
@@ -215,7 +216,11 @@ Cite `creature_weapon_agreement.csv` (`25`), not 20 or 21 alone. Same
 
 No `error` on 25 (it's a join). `--min-iou` default 0.3.
 
-## Nova QA -- not pipeline outputs
+## Nova QA -- sampled methodology, not metric CSVs
+
+Layer 2–3 of [METHODOLOGY, "Validation methodology"](METHODOLOGY.md#validation-methodology).
+The prompts in `22`/`23`/`24` are settled after several Bedrock runs;
+do not treat a one-shot QA CSV as the citable finding.
 
 `22` creature/weapon boxes: `id`, `source` (`owlv2`/`dino`), `kind`
 (`creature`/`weapon`), `label`, `score`, `box`, `model`, `status`,
@@ -239,7 +244,9 @@ without updating the Makefile graph). One row per poster, `FIELDS`
 declared in the script, pin the model in MODELS.md, check in a sample
 CSV, document columns here and the why in METHODOLOGY. Heavy new
 dependency goes in a pip extra, not the default install. Do not add
-decade aggregates or wire Nova into the Step Function. A new pipeline
+decade aggregates. Nova (`22`–`24`) belongs in the Step Function as a
+sampled `--n` state, not a 145k loop, and does not write into 06/08/20/21
+CSVs; that ASL state is not there yet. A new **per-poster metric**
 stage must also land in `compute_metrics.asl.json` in
 poster-analysis-infrastructure. The full contributor checklist is
 [CONTRIBUTING.md](../CONTRIBUTING.md).

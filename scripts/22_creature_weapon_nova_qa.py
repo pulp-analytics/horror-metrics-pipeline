@@ -26,6 +26,10 @@ per-poster metric-producing pipeline stage, the same reason none of the
 private project's other qa_*.py scripts (qa_census.py, qa_faces.py, ...)
 became pipeline stages either.
 
+The `PROMPT` below is the settled text after several Bedrock runs and
+prompt revisions -- we crossed the detector with Nova more than once
+before citing a false-positive rate.
+
   export AWS_PROFILE=sandbox_bedrock
   python3 22_creature_weapon_nova_qa.py --in data/sample_input/sample_100_posters.csv --boxes data/sample_output/creature_weapon_owlv2.csv --source owlv2 --n 50
   python3 22_creature_weapon_nova_qa.py --in data/sample_input/sample_100_posters.csv --boxes data/sample_output/creature_weapon_dino.csv --source dino --n 50 --out data/sample_output/qa_creature_weapon_dino.csv

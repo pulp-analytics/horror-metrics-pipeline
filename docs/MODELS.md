@@ -159,6 +159,8 @@ Verified 2026-08-19 via `curl https://huggingface.co/api/models/IDEA-Research/gr
   a managed model behind a versioned-looking ID that AWS can still update
   server-side without a client-visible changelog. Not pinnable from the
   caller's side -- each output row records the `model_id` as the closest
-  available provenance signal.
+  available provenance signal. Calls use `temperature: 0`. The prompts
+  in those scripts are the settled text after several runs; see
+  [METHODOLOGY, "Validation methodology"](METHODOLOGY.md#validation-methodology).
 - **MiDaS nested EfficientNet backbone** (see MiDaS section above): fetched
   by intel-isl/MiDaS's own hubconf, not by a model_id this repo owns.
