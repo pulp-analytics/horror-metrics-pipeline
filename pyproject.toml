@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Laptop pipeline: 02-04 (pyiqa) and 19 (YOLOv8n). Still no TensorFlow, no AWS.
+# Extra-free default plus pyiqa (02/03) and ultralytics (19). No TensorFlow, no boto3.
 cpu = [
     "pyiqa>=0.1.11",
     "ultralytics>=8.3",
@@ -44,6 +44,6 @@ all = [
 ]
 
 [tool.setuptools]
-# Scripts stay `python3 scripts/01_....py`; this project table exists so
+# Batch invokes `python3 scripts/01_....py`; this project table exists so
 # pip extras work. helpers under scripts/utils/ are imported via sys.path.
 packages = []

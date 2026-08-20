@@ -420,8 +420,8 @@ regions). Failed posters are skipped, not written -- this script has no
 ### Why OpenCV heuristics, not a layout model
 
 LayoutParser / Detectron2 are trained on document layouts, not
-illustrated poster art, and the real project hit an unresolved Apple
-Silicon checkpoint bug on that path. The five groups above are cheap
+illustrated poster art, and the real project hit an unresolved
+Detectron2 checkpoint bug on that path. The five groups above are cheap
 enough to run on CPU at corpus scale, trend-comparable across decades
 (the actual use), and don't claim per-poster "this is the title box"
 truth. MSER in particular is a corpus-trend detector, not OCR.

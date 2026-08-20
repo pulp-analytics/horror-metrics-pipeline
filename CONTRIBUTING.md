@@ -11,10 +11,10 @@ Thanks for your interest in contributing.
    CI runs `pytest -m "not slow"` on every push and PR (`make test-fast`).
 4. Link any related issue.
 
-## Installing (local development)
+## Installing (CI and sample CSVs)
 
-Corpus runs use the image in poster-analysis-infrastructure, not this
-venv. For a laptop or CI:
+Corpus scoring uses the image in poster-analysis-infrastructure.
+These extras are for pytest and for regenerating `data/sample_output/`:
 
 ```bash
 pip install -e ".[cpu]"                 # 01-17, 19-21, 25 (no TensorFlow, no boto3)
@@ -67,8 +67,8 @@ Do:
   `tests/test_schema_contract.py` green.
 - Test pure functions without model downloads. `@pytest.mark.slow` is
   for tests that fetch weights.
-- Use `utils.device.pick_device` (`cuda` > `mps` > `cpu`) on new torch
-  GPU scripts. `18` is TensorFlow; leave it.
+- Use `utils.device.pick_device` (`cuda` > `cpu`) on new torch GPU
+  scripts. Do not add MPS. `18` is TensorFlow; leave it.
 
 Adding a metric: next unused script number, Makefile graph if it belongs
 in `make sample`, extras/pin/SCHEMA/METHODOLOGY/sample/FIELDS as above.

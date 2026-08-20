@@ -11,8 +11,8 @@ master_dataset.csv (a historical naming artifact from when it lived
 alongside the CLIP-based categories, not a dependency on one). See
 docs/METHODOLOGY.md for why each heuristic was chosen over a heavier
 layout model (LayoutParser/Detectron2 are trained on document layouts,
-not illustrated poster art, and have an unresolved Apple Silicon
-checkpoint bug).
+not illustrated poster art, and hit an unresolved Detectron2 checkpoint
+bug on the path we tried).
 
   python3 16_geometric_composition.py --in data/sample_input/sample_100_posters.csv
 
