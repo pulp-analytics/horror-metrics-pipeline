@@ -239,3 +239,10 @@ data/ground_truth/.imdb_cache/
 # reasoning as data/models/ above, ultralytics just saves it to cwd instead
 *.pt
 *.pt
+
+# CLIP/SigLIP embedding caches from 05/11 -- regenerated on demand, not
+# the citable sample (those are the CSVs in data/sample_output/)
+data/sample_output/*.npz
+
+# assemble_master_dataset.py / `make assemble-sample` flat join -- derived
+master_dataset.csv
