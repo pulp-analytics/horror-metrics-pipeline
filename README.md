@@ -7,9 +7,9 @@ medium/painted-vs-photo classification), perceptual quality scores
 geometric composition metrics.
 
 Part of the [Pulp Analytics](https://github.com/pulp-analytics) horror poster
-analysis project ("The Anatomy of Fear"). Corpus-scale runs are orchestrated
-by [poster-analysis-infrastructure](https://github.com/pulp-analytics/poster-analysis-infrastructure);
-this repo is the code that image executes. See [Where this runs](#where-this-runs).
+analysis project ("The Anatomy of Fear"). Corpus-scale scoring is orchestrated
+by [poster-analysis-infrastructure](https://github.com/pulp-analytics/poster-analysis-infrastructure).
+See [Where this runs](#where-this-runs).
 
 **Scope: this repo analyzes one poster at a time and stops there.**
 Aggregating those per-poster metrics into charts/trends/decisions (e.g.
@@ -35,8 +35,7 @@ Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
 
 ## Where this runs
 
-This repo is the **code the cloud job runs**, not a laptop app. Corpus-scale
-scoring is orchestrated by
+Corpus-scale scoring is orchestrated by
 [poster-analysis-infrastructure](https://github.com/pulp-analytics/poster-analysis-infrastructure)
 (`statemachine/compute_metrics.asl.json`): Step Functions + AWS Batch
 array jobs for every script that loops per poster (01–05, 10–11, 14,
@@ -58,12 +57,11 @@ that compute environment to EC2 (`g4dn` / `g5`) and add GPU
 the rest are `cuda` if `torch.cuda.is_available()`). Nothing in *this*
 repo turns GPU on or off.
 
-`make sample` and `pip install -e ".[cpu]"` exist so CI and contributors
-can rebuild the checked-in 99-poster CSVs under `data/sample_output/` --
-not as a second way to score the corpus. The extra name `[cpu]` means "no
-TensorFlow, no boto3" — not "this pipeline is CPU-only." Nova QA (22/23/24)
-is not a Step Functions state. `25` is a no-model join of 20+21 (cite that
-CSV); it is not currently a state in `compute_metrics.asl.json`.
+`make sample` rebuilds missing CSVs under `data/sample_output/`. The extra
+name `[cpu]` means "no TensorFlow, no boto3" — not "this pipeline is
+CPU-only." Nova QA (22/23/24) is not a Step Functions state. `25` is a
+no-model join of 20+21 (cite that CSV); it is not currently a state in
+`compute_metrics.asl.json`.
 
 ## Tests and the checked-in sample
 
