@@ -31,12 +31,15 @@ We cross them with something that is not the same model:
   prompt in each script asks for Nova's own judgment; the CLIP or
   detector guess is context, not an instruction to agree.
 
-Nova is not a pipeline stage and does not write columns into the metric
-CSVs. We ran Bedrock more than once (small mechanism checks, then
+Nova is not a per-poster metric and does not write columns into the
+metric CSVs. We ran Bedrock more than once (small mechanism checks, then
 `--n 1000` where we cite a rate) and iterated the prompts now pinned in
 those three scripts until the JSON verdicts tracked real posters instead
 of rubber-stamping. Calls use `temperature: 0`; remaining variance is
 which posters `--n` draws. Numbers: [RESULTS.md](RESULTS.md) "Nova QA."
+In poster-analysis-infrastructure this sampled pass belongs in
+`compute_metrics.asl.json` after the metric it grades; that state is
+not in the ASL yet.
 
 **3. Human review.** Someone looked at famous posters and recorded
 expected labels (`--validate` on census, faces, fear and typography
@@ -621,9 +624,10 @@ detection."
 Layer 2 of [How we trust a metric](#how-we-trust-a-metric): a vision-LLM
 cross-check of semantic output that already exists, plus layer 3 (a
 human reading disagreements). Same role the private project's `qa_*.py`
-scripts never graduated into Step Functions for. They need Bedrock
-(`us.amazon.nova-pro-v1:0`) and are deliberately absent from
-`make sample` and from `compute_metrics.asl.json`. Composition / depth /
+scripts never graduated into Step Functions for -- here they are the
+sampled methodology layer and belong in `compute_metrics.asl.json` as
+a `--n` state, which is not in the ASL yet. They need Bedrock
+(`us.amazon.nova-pro-v1:0`) and stay out of `make sample`. Composition / depth /
 saliency / pose are continuous geometric measurements; there is no
 comparable "Nova, is this number right?" question, which is why those
 categories have no QA script.

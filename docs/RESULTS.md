@@ -643,9 +643,9 @@ motif at 0.456; *Mars Attacks!* → real `"zombie"`/alien imagery at
 `"gun"`) was also confirmed correct -- so the mechanism isn't rubber-
 stamping "false_positive," it's tracking something real.
 
-Not wired into `compute_metrics.asl.json` -- see the module docstring
-for why (a QA/spot-check tool, not a pipeline stage), and this needs real
-AWS credentials, unlike every other script in this repo except 23/24.
+Not in `compute_metrics.asl.json` yet -- sampled methodology, see
+README "How we trust a metric." Needs Bedrock credentials, unlike
+01–21 / 25.
 
 **At real scale**: the 15-poster run above was a mechanism check, not a
 finding -- too small and deliberately not stratified toward genre
