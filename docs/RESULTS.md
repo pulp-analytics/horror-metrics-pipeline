@@ -538,7 +538,35 @@ alone isn't trustworthy: a blind Nova Pro QA pass over the real
 project's full-corpus OWLv2 output found roughly 60%+ of its "creature
 detected" boxes were false positives. Neither script's raw output
 should be read as ground truth by itself -- agreement between the two
-on the same poster is the real signal.
+on the same poster is the real signal. `25_creature_weapon_agreement.py`
+writes that join: a same-label box pair is kept only when IoU >= 0.3
+(illustrated-poster boxes are looser than COCO; override with `--min-iou`).
+`creature_label_agree` / `weapon_label_agree` are a looser check (both
+detectors' top_label strings match) that does not require overlap.
+
+Checked-in sample (`data/sample_output/creature_weapon_agreement.csv`,
+99 posters, `--min-iou 0.3`). Context: OWLv2 fired a creature box on 72
+posters and a weapon box on 28; DINO on 97 and 70; both detectors fired
+on 71 creature / 26 weapon. Agreement is a small slice of that:
+
+| signal | posters | of 99 |
+|---|---:|---:|
+| creature box agreement (`creature_n` > 0) | 9 | 9.1% |
+| weapon box agreement (`weapon_n` > 0) | 9 | 9.1% |
+| creature top-label agreement | 4 | 4.0% |
+| weapon top-label agreement | 6 | 6.1% |
+
+So 9/71 co-detected creature posters (12.7%) and 9/26 co-detected
+weapon posters (34.6%) share a same-label overlapping box. Box
+agreement can exceed top-label agreement: a matching pair need not be
+each detector's highest-scoring box (6 of 9 creature box-agreements
+have mismatched `top_label`s). Creature agreed labels are skewed to
+the known OWLv2 failure mode (`vampire` 6, `giant_monster`/`bird`/`doll`
+1 each) -- two detectors independently drawing a face-sized "vampire"
+box still isn't ground truth. Weapon agreed labels look more like real
+objects (`gun` 6, `sword`/`axe`/`arrow` 1 each). Cite the agreement
+CSV, not `creature_weapon_owlv2.csv` or `creature_weapon_dino.csv`
+alone, and don't treat even the intersection as verified presence.
 
 Reproduction against the real project's own output
 (`data/creature_boxes.json`/`data/weapon_boxes.json` for OWLv2,

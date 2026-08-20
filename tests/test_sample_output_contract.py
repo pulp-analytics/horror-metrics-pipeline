@@ -1,6 +1,7 @@
 """Contract tests for the checked-in 99-poster sample: every 01-21 metric
-CSV is present, one row per poster, and assemble_master_dataset.py can
-join them using sample_output/metrics_input.csv as the auto-detected base.
+CSV plus 25's agreement file is present, one row per poster, and
+assemble_master_dataset.py can join them using sample_output/metrics_input.csv
+as the auto-detected base.
 No model downloads -- reads committed CSVs only."""
 from __future__ import annotations
 
@@ -38,6 +39,7 @@ METRIC_FILES = [
     "pose_dynamism.csv",
     "creature_weapon_owlv2.csv",
     "creature_weapon_dino.csv",
+    "creature_weapon_agreement.csv",
 ]
 
 
@@ -71,6 +73,7 @@ def test_assemble_sample_output_yields_99_rows(tmp_path):
     assert "geometric_composition_symmetry" in merged.columns
     assert "creature_weapon_owlv2_creature_n" in merged.columns
     assert "creature_weapon_dino_creature_n" in merged.columns
+    assert "creature_weapon_agreement_creature_n" in merged.columns
     assert "depth_estimation_mean_depth" in merged.columns
     assert "pose_dynamism_n_persons" in merged.columns
     assert "saliency_prediction_peak_x" in merged.columns

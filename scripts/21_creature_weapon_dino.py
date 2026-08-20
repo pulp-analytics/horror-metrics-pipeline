@@ -7,9 +7,10 @@ Why a second model at all: a blind Nova Pro QA pass over this project's
 real OWLv2 output found roughly 60%+ of its "creature detected" boxes
 were false positives. Neither detector's raw output is the real signal
 by itself -- agreement between OWLv2 and Grounding DINO on the same
-poster is (see docs/RESULTS.md, "Creature/weapon detection," for the
-real numbers). CREATURE_QUERIES/WEAPON_QUERIES below are intentionally
-identical to 20's -- keep them in sync if you ever edit either.
+poster is (see `25_creature_weapon_agreement.py`, which writes that join,
+and docs/RESULTS.md, "Creature/weapon detection," for the real numbers).
+CREATURE_QUERIES/WEAPON_QUERIES below are intentionally identical to
+20's -- keep them in sync if you ever edit either.
 
 Per-poster metrics (same shape as 20, so the two are directly comparable):
   creature_n, creature_top_label, creature_top_score, creature_boxes

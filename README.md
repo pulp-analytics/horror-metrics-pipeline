@@ -46,6 +46,7 @@ python3 scripts/18_saliency_prediction.py     # saliency: MSI-Net eye-tracking p
 python3 scripts/19_pose_dynamism.py           # pose: YOLOv8n person detection + ViTPose skeleton
 python3 scripts/20_creature_weapon_owlv2.py   # creature/weapon: OWLv2 zero-shot detection
 python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO cross-check
+python3 scripts/25_creature_weapon_agreement.py  # creature/weapon: OWLv2 ∩ DINO (the citable signal)
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
 make test-fast                               # same as the pytest line above
 
@@ -71,8 +72,10 @@ needed. See docs/RESULTS.md, "Saliency," for how this was root-caused.
 to be run together, not standalone: a blind QA pass over the real
 project's OWLv2-only output found roughly 60%+ of its "creature
 detected" boxes were false positives, so treat each script's raw output
-as a candidate, not a verdict -- agreement between the two on a poster
-is the actual signal. See docs/RESULTS.md, "Creature/weapon detection."
+as a candidate, not a verdict. `25_creature_weapon_agreement.py` is the
+join that materializes that signal (same label + box IoU) into
+`creature_weapon_agreement.csv` -- cite that file, not 20 or 21 alone.
+See docs/RESULTS.md, "Creature/weapon detection."
 
 `22_creature_weapon_nova_qa.py`, `23_census_nova_qa.py`, and
 `24_typography_nova_qa.py` are Nova Pro vision-LLM QA tools, not pipeline
@@ -140,8 +143,9 @@ command auto-detects the base -- no `--base` needed on the checked-in
 sample. It left-joins every metric CSV found in `--data-dir` onto the
 corpus base (`validated_corpus.csv` or `metrics_input.csv`), prefixing each
 file's columns with its own stem so same-named columns across files
-(e.g. `creature_n` in both `creature_weapon_owlv2.csv` and
-`creature_weapon_dino.csv`) never collide. `face_expression.csv` is
+(e.g. `creature_n` in `creature_weapon_owlv2.csv`,
+`creature_weapon_dino.csv`, and `creature_weapon_agreement.csv`) never
+collide. `face_expression.csv` is
 aggregated first since it's the one output with multiple rows per
 poster (one per detected face).
 
@@ -180,6 +184,9 @@ scripts/
   21_creature_weapon_dino.py   Grounding DINO zero-shot creature/weapon
                                 detection -- same vocabulary as 20, run both
                                 and treat agreement as the signal
+  25_creature_weapon_agreement.py  join of 20 ∩ 21: same-label boxes with
+                                IoU >= 0.3 -- the citable creature/weapon
+                                output; no model, reads the two CSVs
   22_creature_weapon_nova_qa.py  Nova Pro QA of 20/21's boxes -- needs AWS,
                                   not a pipeline stage, see docs/RESULTS.md
   23_census_nova_qa.py           Nova Pro QA of 06's CLIP census -- needs AWS,
@@ -197,12 +204,12 @@ scripts/
 data/
   sample_input/    99 real posters, stratified by decade (1920s-2020s)
   sample_output/   real, already-computed metrics for those same posters
-                    (01-21, including geometric/depth/saliency/pose and
-                    both creature/weapon detectors), metrics_input.csv as
-                    the join base, plus clip_embeddings.npz and
-                    siglip_embeddings.npz generated for this repo (see
-                    docs/RESULTS.md for what's verified to reproduce
-                    exactly vs. what isn't, and why)
+                    (01-21 plus 25's OWLv2 ∩ DINO agreement), including
+                    geometric/depth/saliency/pose and both creature/weapon
+                    detectors, metrics_input.csv as the join base, plus
+                    clip_embeddings.npz and siglip_embeddings.npz generated
+                    for this repo (see docs/RESULTS.md for what's verified
+                    to reproduce exactly vs. what isn't, and why)
 docs/
   METHODOLOGY.md   what's computed and why, per category
   RESULTS.md        real findings, per category

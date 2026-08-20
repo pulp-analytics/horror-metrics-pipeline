@@ -17,7 +17,8 @@ boxes were false positives (see 21_creature_weapon_dino.py, a second
 independent zero-shot detector run on the exact same posters and
 vocabulary specifically to cross-check this one -- neither script alone
 is the real signal; agreement between them is). Don't treat this script's
-output as ground truth by itself.
+output as ground truth by itself -- run `25_creature_weapon_agreement.py`
+on this file and 21's output, and cite that.
 
   python3 20_creature_weapon_owlv2.py --in data/sample_input/sample_100_posters.csv
 
