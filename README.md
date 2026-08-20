@@ -7,7 +7,9 @@ medium/painted-vs-photo classification), perceptual quality scores
 geometric composition metrics.
 
 Part of the [Pulp Analytics](https://github.com/pulp-analytics) horror poster
-analysis project ("The Anatomy of Fear").
+analysis project ("The Anatomy of Fear"). Corpus-scale runs are orchestrated
+by [poster-analysis-infrastructure](https://github.com/pulp-analytics/poster-analysis-infrastructure);
+this repo is the code that image executes. See [Where this runs](#where-this-runs).
 
 **Scope: this repo analyzes one poster at a time and stops there.**
 Aggregating those per-poster metrics into charts/trends/decisions (e.g.
@@ -21,16 +23,51 @@ semantic embeddings, faces, geometric composition, depth, saliency,
 pose, and creature/weapon detection are all built and documented
 (below) -- see docs/RESULTS.md.**
 
+Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
+[RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
+
+- [Where this runs](#where-this-runs)
 - [Quickstart](#quickstart)
 - [Join into one table](#joining-the-outputs-into-one-table)
 - [Structure](#structure)
 - [Contributing](CONTRIBUTING.md)
 - [License](#license)
 
-Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
-[RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
+## Where this runs
+
+This repo is the **code the cloud job runs**, not a laptop app. Corpus-scale
+scoring is orchestrated by
+[poster-analysis-infrastructure](https://github.com/pulp-analytics/poster-analysis-infrastructure)
+(`statemachine/compute_metrics.asl.json`): Step Functions + AWS Batch
+array jobs for every script that loops per poster (01–05, 10–11, 14,
+16–21) + Fargate ECS tasks for the vectorized CLIP/SigLIP/expression
+passes (06–09, 12–13, 15). Shared EFS holds `--in` / `--out`. The
+container is `docker/Dockerfile.metrics` in that repo, which clones
+**this** repo at a pinned commit.
+
+**CPU today; GPU is an infrastructure switch, not a flag here.** The
+metrics Batch compute environment is Fargate, which has no GPUs — on
+purpose. That repo's `docs/ARCHITECTURE.md` ("GPU is a real option this
+design doesn't take") and `batch/compute-environment-metrics.json` spell
+it out: the 145k-poster corpus was scored on self-terminating EC2; Fargate
+exists so a forgotten instance cannot bill again (see that repo's
+`docs/COST_SAFETY.md`). If wall-clock at full scale needs GPUs, change
+that compute environment to EC2 (`g4dn` / `g5`) and add GPU
+`resourceRequirements` on the job definition. These scripts already pick
+`cuda` when the container has it (`utils.device.pick_device` on 17/19/20/21;
+the rest are `cuda` if `torch.cuda.is_available()`). Nothing in *this*
+repo turns GPU on or off.
+
+`make sample` and `pip install -e ".[cpu]"` below are for developing and
+for the checked-in 99-poster sample. The extra name `[cpu]` means "no
+TensorFlow, no boto3" — not "this pipeline is CPU-only." Nova QA (22/23/24)
+is not a Step Functions state. `25` is a no-model join of 20+21 (cite that
+CSV); it is not currently a state in `compute_metrics.asl.json`.
 
 ## Quickstart
+
+Local development and the checked-in 99-poster sample. Corpus-scale runs
+go through [Where this runs](#where-this-runs).
 
 ```bash
 pip install -e ".[cpu]"                   # 01-17, 19-21, 25 (no TensorFlow, no AWS)
@@ -86,7 +123,9 @@ dependencies (`pip install -e .` / `requirements-ci.txt`): no
 tensorflow, pyiqa, ultralytics, or boto3 -- those are only needed by
 `18`, `02`/`03`, `19`, and Nova QA/`--posters-s3-bucket` respectively,
 or by `@pytest.mark.slow` tests. `pip install -e ".[cpu]"` is the
-laptop pipeline; `".[all]"` matches the old flat `requirements.txt`.
+**local** extra (no TensorFlow, no boto3); `".[all]"` matches the old
+flat `requirements.txt`. Production installs whatever
+`docker/Dockerfile.metrics` in poster-analysis-infrastructure pins.
 Lower bounds live in `pyproject.toml`. There is no platform lock file:
 torch wheels differ across macOS / CPU Linux / CUDA, so a single
 `uv.lock` / `pip freeze` would lie to the other two.
@@ -138,9 +177,10 @@ deciding whether to trust a detector before citing it, the same as the
 private project's own `qa_*.py` scripts never became pipeline stages
 either. No Step Functions execution runs them automatically.
 
-No API key or AWS needed for scripts 01-21 or 25 — posters come from TMDB's
-public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
-detector) is a small local ONNX file, not a cloud service. Every
+The Python for 01-21 and 25 does not call AWS ML APIs — posters come from
+TMDB's public image CDN (optional `--posters-s3-bucket`). Production still
+*runs on* AWS (Fargate/Batch); that is orchestration, not Rekognition. The
+one non-CLIP/SigLIP model (`14`'s YuNet) is a small local ONNX file. Every
 download-capable script (everything except `06`-`09`, `12`-`13`, `15`,
 and `25`, which read `05`'s/`11`'s embedding cache, `14`'s face boxes,
 or 20+21's CSVs -- `16`-`21` all download fresh, same as `01`-`04`/`14`) shares one poster cache
@@ -152,9 +192,9 @@ optional, off by default.
 
 `17_depth_estimation.py`, `19_pose_dynamism.py`, `20_creature_weapon_owlv2.py`,
 and `21_creature_weapon_dino.py` pick a torch device with `cuda` > `mps` >
-`cpu` (`--device` to override). On Apple Silicon that means Metal instead
-of the CPU fallback that made the 99-poster Grounding DINO sample take
-~27 minutes. `18_saliency_prediction.py` is TensorFlow, not torch.
+`cpu` (`--device` to override). On a CUDA Batch/EC2 worker that is GPU;
+on Apple Silicon (local sample) that is Metal. `18_saliency_prediction.py`
+is TensorFlow, not torch.
 
 Not tied to horror specifically: `01_color_metrics.py` has no
 genre-specific logic and was verified live against a real, non-horror

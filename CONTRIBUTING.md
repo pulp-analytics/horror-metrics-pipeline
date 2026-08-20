@@ -11,16 +11,20 @@ Thanks for your interest in contributing.
    CI runs `pytest -m "not slow"` on every push and PR (`make test-fast`).
 4. Link any related issue.
 
-## Installing
+## Installing (local development)
+
+Corpus runs use the image in poster-analysis-infrastructure, not this
+venv. For a laptop or CI:
 
 ```bash
-pip install -e ".[cpu]"                 # laptop pipeline (01-17, 19-21, 25)
+pip install -e ".[cpu]"                 # 01-17, 19-21, 25 (no TensorFlow, no boto3)
 pip install -e ".[cpu,tf-saliency]"     # plus 18 (TensorFlow / MSI-Net)
 pip install -e ".[bedrock]"             # Nova QA (22/23/24) and S3 poster cache
 pip install -e ".[all]"                 # everything
 ```
 
-CI (`make test-fast`) uses the extra-free default: `pip install -e .`
+The extra name `cpu` is "skip TF/boto3", not "CPU-only instances." CI
+(`make test-fast`) uses the extra-free default: `pip install -e .`
 
 ## Invariants
 
@@ -45,6 +49,10 @@ Do not:
   `agree` against Nova.
 - Put tensorflow, boto3, pyiqa, or ultralytics in the default install.
   New heavy deps go in a pip extra (`cpu` / `tf-saliency` / `bedrock`).
+- Add a GPU Batch compute environment in *this* repo. CPU/Fargate vs
+  EC2 GPU is poster-analysis-infrastructure
+  (`docs/ARCHITECTURE.md`). These scripts already use CUDA when the
+  container has it.
 - Commit `data/posters_cache/`, `data/models/`, CLIP/SigLIP `.npz`
   caches, `master_dataset.csv`, or `*.csv.lock`.
 
@@ -64,8 +72,11 @@ Do:
 
 Adding a metric: next unused script number, Makefile graph if it belongs
 in `make sample`, extras/pin/SCHEMA/METHODOLOGY/sample/FIELDS as above.
+A new **pipeline stage** also needs a state in
+`compute_metrics.asl.json` in poster-analysis-infrastructure (and a pin
+bump of `METRICS_PIPELINE_REF` in that repo's `Dockerfile.metrics`).
 22–24 are QA — do not insert a pipeline stage in that gap without
-updating the graph. Details: [docs/SCHEMA.md](docs/SCHEMA.md#adding-a-metric).
+updating both graphs. Details: [docs/SCHEMA.md](docs/SCHEMA.md#adding-a-metric).
 
 ## Reporting issues
 

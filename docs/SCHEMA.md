@@ -239,5 +239,7 @@ without updating the Makefile graph). One row per poster, `FIELDS`
 declared in the script, pin the model in MODELS.md, check in a sample
 CSV, document columns here and the why in METHODOLOGY. Heavy new
 dependency goes in a pip extra, not the default install. Do not add
-decade aggregates or wire Nova into the Step Function. The full
-contributor checklist is [CONTRIBUTING.md](../CONTRIBUTING.md).
+decade aggregates or wire Nova into the Step Function. A new pipeline
+stage must also land in `compute_metrics.asl.json` in
+poster-analysis-infrastructure. The full contributor checklist is
+[CONTRIBUTING.md](../CONTRIBUTING.md).
