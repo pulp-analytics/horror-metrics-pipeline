@@ -219,7 +219,8 @@ scripts/
   22_creature_weapon_nova_qa.py  Nova Pro QA of 20/21's boxes -- needs AWS,
                                   not a pipeline stage, see docs/RESULTS.md
   23_census_nova_qa.py           Nova Pro QA of 06's CLIP census -- needs AWS,
-                                  not a pipeline stage
+                                  not a pipeline stage; agree maps CLIP
+                                  uncertain → none (Nova has no uncertain)
   24_typography_nova_qa.py       Nova Pro QA of 08's CLIP typography axis --
                                   needs AWS, not a pipeline stage
   utils/

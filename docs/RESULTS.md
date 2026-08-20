@@ -273,26 +273,30 @@ Live run, 40 real posters, `us.amazon.nova-pro-v1:0`:
 
 | script | metric | result |
 |---|---|---|
-| `23` (census, `06`) | exact label agreement | 8/40 (20.0%) |
+| `23` (census, `06`) | exact label agreement (raw strings, pre-mapping) | 8/40 (20.0%) |
 | `24` (typography, `08`) | exact register agreement | 30/40 (75.0%) |
 | `24` (typography, `08`) | exact-or-adjacent-register agreement | 39/40 (97.5%) |
 
 Very different agreement rates, and both make sense on inspection.
-Census's low number is mostly a labeling-convention artifact, not
-disagreement about content: CLIP's `06` outputs the literal string
-`"uncertain"` for any low-confidence poster (27 of this sample's 40 —
-most posters genuinely have no creature), but Nova is never offered
-`"uncertain"` as an option and always picks a real category or `"none"`
--- so `"uncertain" != "none"` counts as disagreement on every single one
-of those 27 rows even when Nova's answer (`"none"`) is exactly the right
-call. Spot-checking the reasons confirms this: e.g. poster 870056
-("House of Dracula"), CLIP said `"uncertain"`, Nova said `"vampire"`
-because it read the *title text* on the poster -- a channel CLIP's
-embedding-similarity method doesn't use the same way. Typography's
-75%/97.5% is a much more direct, high agreement result: title lettering
-style is a lower-ambiguity call than "is there a monster," and the
-5-register spectrum gives partial credit (`agree_adjacent`) for being one
-bucket off, which is where most of the remaining 15/40 landed.
+Census's 20% was mostly a labeling-convention artifact, not disagreement
+about content: CLIP's `06` outputs the literal string `"uncertain"` for
+any low-confidence poster (27 of this sample's 40 — most posters
+genuinely have no creature), but Nova is never offered `"uncertain"` as
+an option and always picks a real category or `"none"`. `23`'s `agree`
+column now maps CLIP `"uncertain"` → `"none"` before comparing (same
+convention as `06`'s famous-poster validate), so a re-run of this QA
+counts those rows as agreement when Nova also says `"none"`. The 8/40
+figure above is the historical unmapped exact-string rate from that live
+run; it was not recomputed here. Spot-checking the reasons still finds
+real remaining disagreements: e.g. poster 870056 ("House of Dracula"),
+CLIP said `"uncertain"`, Nova said `"vampire"` because it read the
+*title text* on the poster -- a channel CLIP's embedding-similarity
+method doesn't use the same way. That row stays a disagreement after
+the mapping. Typography's 75%/97.5% is a much more direct, high
+agreement result: title lettering style is a lower-ambiguity call than
+"is there a monster," and the 5-register spectrum gives partial credit
+(`agree_adjacent`) for being one bucket off, which is where most of the
+remaining 15/40 landed.
 
 ## SigLIP semantic embeddings
 

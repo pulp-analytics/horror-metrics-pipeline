@@ -20,6 +20,13 @@ access (Bedrock's Nova Pro) and is not free to run at any real sample
 size. Deliberately NOT wired into compute_metrics.asl.json -- a QA tool
 for spot-checking 06's output, not a per-poster metric-producing stage.
 
+`agree` maps CLIP's low-confidence sentinel `"uncertain"` to `"none"`
+before comparing (Nova's taxonomy has no `"uncertain"`; 06/13 write that
+string when score < --min-score). The `clip_label` column still stores
+the census CSV as-is -- this mapping is only the QA comparison, same
+convention as 06's famous-poster validate treating uncertain as a hit
+when the expected set includes none.
+
 --census also accepts 13_siglip_reanalysis.py's --census-out (same
 id/label/score shape, different embedding model) if you want to QA the
 SigLIP census instead -- the taxonomy and prompt are the same either way.
@@ -92,6 +99,25 @@ Return ONLY valid JSON (no markdown):
 """
 
 _write_lock = threading.Lock()
+
+
+def clip_label_for_agree(clip_label: str) -> str:
+    """Map CLIP's low-confidence sentinel onto Nova's 'no creature' category.
+
+    06/13 write 'uncertain' when score < --min-score. Nova never sees that
+    string -- its taxonomy is the same labels plus 'none'. A raw equality
+    check then counts every low-confidence no-monster poster as a
+    disagreement even when Nova correctly says 'none'. Census CSVs are
+    not rewritten.
+    """
+    s = (clip_label or "").strip()
+    if s == "uncertain":
+        return "none"
+    return s
+
+
+def labels_agree(clip_label: str, nova_label: str) -> bool:
+    return clip_label_for_agree(clip_label) == (nova_label or "").strip()
 
 
 def load_rows(in_path: Path, census_path: Path) -> list[dict]:
@@ -210,7 +236,7 @@ def process_one(client, r: dict, posters_dir: Path, session: requests.Session,
         base.update(
             status="ok",
             nova_label=nova_label,
-            agree=str(nova_label == r["clip_label"]),
+            agree=str(labels_agree(r["clip_label"], nova_label)),
             reason=obj.get("reason", ""),
             latency_s=round(time.perf_counter() - t0, 3),
         )
