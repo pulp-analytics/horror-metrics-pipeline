@@ -21,6 +21,15 @@ semantic embeddings, faces, geometric composition, depth, saliency,
 pose, and creature/weapon detection are all built and documented
 (below) -- see docs/RESULTS.md.**
 
+- [Quickstart](#quickstart)
+- [Join into one table](#joining-the-outputs-into-one-table)
+- [Structure](#structure)
+- [Contributing](CONTRIBUTING.md)
+- [License](#license)
+
+Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
+[RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
+
 ## Quickstart
 
 ```bash
@@ -181,6 +190,7 @@ poster (one per detected face). Column names, units, and sentinels
 
 ```
 Makefile                           `make sample` / `make test-fast` / `make assemble-sample`
+CONTRIBUTING.md                    invariants (one poster at a time, Nova not a stage)
 pyproject.toml                     extras: cpu / tf-saliency / bedrock
 scripts/
   01_color_metrics.py          Per-poster brightness/saturation/hue-bands/
@@ -251,22 +261,31 @@ docs/
                      ViTPose/MSI-Net by HF revision, YuNet/YOLOv8n by sha256,
                      MiDaS by torch.hub GitHub commit, CLIP already pinned
                      by open_clip itself)
-tests/
-  test_color_metrics.py     pure-function tests for the color math
-  test_clip_backbone.py     softmax/cosine-similarity math underlying every
-                             CLIP script, on synthetic embeddings
-  test_siglip_backbone.py   same math, SigLIP's side, on synthetic embeddings
-  test_face_expression.py   pure crop/box-parsing geometry for 15, on synthetic images
-  test_posters.py           shared poster-cache logic -- confirms the local-
-                             cache-hit path never touches the network, and
-                             that no AWS import happens when S3 isn't configured
-  test_makefile_sample.py   `make sample` dry-run: 05 before 06-09, 20+21
-                             before 25, Nova QA not in the graph, no-op when
-                             the checked-in CSVs already exist
-  test_device.py            cuda > mps > cpu pick, including --device override
-  test_pyproject_extras.py  cpu / tf-saliency / bedrock extras; default
-                             install does not pull tensorflow or boto3
-  test_schema_contract.py   sample CSV headers match script FIELDS / SCHEMA
+tests/                             `make test-fast` = pytest -m "not slow"
+  test_census_nova_qa.py            23: uncertain→none agree, pick_sample
+  test_clip_backbone.py             CLIP softmax/cosine math (synthetic)
+  test_color_metrics.py             01 color math
+  test_creature_weapon_agreement.py 25: IoU + greedy box match
+  test_creature_weapon_dino.py      21: prompt build / box filter
+  test_creature_weapon_nova_qa.py   22: load_detections / pick_sample
+  test_creature_weapon_owlv2.py     20: filter_boxes
+  test_depth_estimation.py          17: min-max closeness (slow: live MiDaS)
+  test_device.py                    cuda > mps > cpu
+  test_face_expression.py           15: crop/box geometry
+  test_geometric_composition.py     16: OpenCV heuristics
+  test_makefile_sample.py           make sample graph; Nova not in it
+  test_model_pins.py                Hub/GitHub/file loads have a revision
+  test_pose_dynamism.py             19: compute_metrics
+  test_posters.py                   cache hit never touches the network
+  test_pyproject_extras.py          cpu / tf-saliency / bedrock extras
+  test_readme_inventory.py          README Structure names every test_*.py
+  test_resumable.py                 flock, 0-byte header, no duplicate ids
+  test_saliency_prediction.py       18: heatmap summary (slow: live MSI-Net)
+  test_sample_output_contract.py    99-poster sample: one row per id, assemble
+  test_schema_contract.py           sample headers match FIELDS / SCHEMA
+  test_siglip_backbone.py           SigLIP softmax/cosine math (synthetic)
+  test_typography_nova_qa.py        24: bin_register / agree_adjacent
+  test_validate_genre_classifier_vs_imdb.py  genre-vs-IMDb metrics (no CLIP)
 ```
 
 ## License
