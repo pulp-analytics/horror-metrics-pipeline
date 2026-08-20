@@ -1,0 +1,100 @@
+id,title,year,creature_n,creature_top_label,creature_top_score,creature_boxes,weapon_n,weapon_top_label,weapon_top_score,weapon_boxes,creature_label_agree,weapon_label_agree
+2969,A Daughter Of Destiny,1928,0,,,[],0,,,[],0,0
+14594,The Thin Man Goes Home,1944,0,,,[],0,,,[],1,0
+19131,Scotland Yard Hunts Dr. Mabuse,1963,0,,,[],0,,,[],0,0
+19169,Nightmare Alley,1947,0,,,[],0,,,[],0,0
+19971,The Little Girl Who Lives Down the Lane,1976,0,,,[],0,,,[],0,0
+20043,Royal Space Force - The Wings of Honneamise,1987,0,,,[],0,,,[],0,0
+24008,Monkey Business,1952,0,,,[],0,,,[],0,0
+25004,Black Ice,2007,0,,,[],0,,,[],0,0
+27509,The Penalty,1920,1,vampire,0.365,"[{""label"": ""vampire"", ""iou"": 0.9325, ""owlv2_score"": 0.446, ""dino_score"": 0.365, ""owlv2_box"": [0.016, 0.0629, 0.5252, 0.6064], ""dino_box"": [0.0223, 0.0651, 0.5102, 0.5821]}]",0,,,[],0,0
+28910,Mark of the Vampire,1935,0,,,[],0,,,[],0,0
+29297,Destination Inner Space,1966,1,giant_monster,0.438,"[{""label"": ""giant_monster"", ""iou"": 0.9249, ""owlv2_score"": 0.58, ""dino_score"": 0.438, ""owlv2_box"": [0.0118, 0.0559, 0.5846, 0.5125], ""dino_box"": [0.0041, 0.0361, 0.5909, 0.5457]}]",0,,,[],1,0
+31948,Gray Lady Down,1978,0,,,[],0,,,[],0,0
+32849,Abandoned,1949,0,,,[],0,,,[],0,0
+33546,The Time of Their Lives,1946,0,,,[],0,,,[],0,0
+34734,Stir of Echoes: The Homecoming,2007,0,,,[],0,,,[],0,0
+36778,Spellbinder,1988,0,,,[],0,,,[],0,0
+38456,Charlie Chan's Murder Cruise,1940,0,,,[],0,,,[],0,0
+40091,Sex Madness,1938,0,,,[],0,,,[],0,0
+40252,Witchboard III: The Possession,1997,0,,,[],0,,,[],0,0
+44169,The Falcon in Danger,1943,0,,,[],0,,,[],0,0
+47062,Miraculous Virgin,1967,1,bird,0.388,"[{""label"": ""bird"", ""iou"": 0.9426, ""owlv2_score"": 0.608, ""dino_score"": 0.388, ""owlv2_box"": [0.6954, 0.3998, 0.2457, 0.337], ""dino_box"": [0.6945, 0.3969, 0.2549, 0.3351]}]",0,,,[],0,0
+47286,Cool Air,1999,0,,,[],0,,,[],0,0
+51565,The Dragon Murder Case,1934,0,,,[],0,,,[],0,0
+52204,The Brain Eaters,1958,0,,,[],0,,,[],0,0
+54539,The Inhuman Woman,1924,0,,,[],0,,,[],0,0
+56429,Up from the Depths,1979,0,,,[],0,,,[],0,0
+58421,Ignition,2002,0,,,[],0,,,[],0,0
+60523,Chicago Calling,1951,0,,,[],0,,,[],0,0
+64568,Taste of Fear,1961,0,,,[],0,,,[],0,0
+67430,Zoo zéro,1979,0,,,[],0,,,[],0,0
+69351,Beauty and the Beast,2005,0,,,[],0,,,[],0,0
+74707,Mystery House,1938,0,,,[],0,,,[],0,0
+75506,World Without End,1956,0,,,[],0,,,[],0,0
+77067,DeadHeads,2011,0,,,[],3,gun,0.362,"[{""label"": ""gun"", ""iou"": 0.936, ""owlv2_score"": 0.495, ""dino_score"": 0.362, ""owlv2_box"": [0.8035, 0.117, 0.1826, 0.201], ""dino_box"": [0.7914, 0.1171, 0.195, 0.2009]}, {""label"": ""gun"", ""iou"": 0.8743, ""owlv2_score"": 0.507, ""dino_score"": 0.325, ""owlv2_box"": [0.1086, 0.3998, 0.2655, 0.1718], ""dino_box"": [0.0946, 0.3975, 0.2675, 0.1785]}, {""label"": ""gun"", ""iou"": 0.914, ""owlv2_score"": 0.399, ""dino_score"": 0.32, ""owlv2_box"": [0.3288, 0.3229, 0.3636, 0.2513], ""dino_box"": [0.342, 0.3265, 0.3403, 0.2502]}]",0,1
+80342,Lady Dragon 2,1993,0,,,[],1,sword,0.309,"[{""label"": ""sword"", ""iou"": 0.6909, ""owlv2_score"": 0.333, ""dino_score"": 0.309, ""owlv2_box"": [0.3155, 0.5854, 0.0559, 0.1721], ""dino_box"": [0.307, 0.5747, 0.0562, 0.1863]}]",0,0
+81829,Bulldog Drummond,1929,0,,,[],0,,,[],0,0
+84770,The Large Rope,1953,0,,,[],0,,,[],0,0
+93394,Elevator,2013,0,,,[],0,,,[],0,0
+94716,A Cottage on Dartmoor,1929,0,,,[],0,,,[],0,0
+136686,Doraemon: Nobita and the Green Giant Legend,2008,0,,,[],0,,,[],0,0
+138999,Little Corey Gorey,1993,1,vampire,0.358,"[{""label"": ""vampire"", ""iou"": 0.9042, ""owlv2_score"": 0.461, ""dino_score"": 0.358, ""owlv2_box"": [0.1916, 0.3677, 0.6569, 0.646], ""dino_box"": [0.1981, 0.3426, 0.6681, 0.6538]}]",0,,,[],0,0
+140418,Bulldog Drummond at Bay,1937,0,,,[],1,gun,0.284,"[{""label"": ""gun"", ""iou"": 0.7132, ""owlv2_score"": 0.298, ""dino_score"": 0.284, ""owlv2_box"": [0.0074, 0.3499, 0.1564, 0.0865], ""dino_box"": [0.0016, 0.3428, 0.1709, 0.111]}]",0,1
+160399,Megazone 23 III - Part 1 - The Awakening of Eve,1989,0,,,[],0,,,[],0,0
+173095,The Brides Wore Blood,1972,0,,,[],0,,,[],0,0
+201989,Bottles,1936,0,,,[],0,,,[],0,0
+213215,The Returning,1983,0,,,[],0,,,[],0,0
+214905,Below the Deadline,1936,0,,,[],0,,,[],0,0
+224473,The Sweet Sound of Death,1965,0,,,[],0,,,[],0,0
+249294,Celia: The Sinister Affair of Poor Aunt Nora,1949,0,,,[],0,,,[],0,0
+267338,"Love, Honor and Oh-Baby!",1940,0,,,[],0,,,[],0,0
+280002,The Remaining,2014,0,,,[],0,,,[],0,0
+294307,The Last Hit,1993,0,,,[],1,gun,0.324,"[{""label"": ""gun"", ""iou"": 0.8315, ""owlv2_score"": 0.664, ""dino_score"": 0.324, ""owlv2_box"": [0.4057, 0.2602, 0.1395, 0.2395], ""dino_box"": [0.3925, 0.2593, 0.1628, 0.2468]}]",0,1
+299460,The Mother  Tree,1958,0,,,[],0,,,[],0,0
+324153,The Shadow Laughs,1933,0,,,[],0,,,[],0,0
+324621,The Return,1980,0,,,[],0,,,[],0,0
+325622,The Hound of the Baskervilles,1921,0,,,[],0,,,[],0,0
+340758,Never Mention Murder,1965,0,,,[],0,,,[],0,0
+361975,The Hoop of Bermuda,1988,1,vampire,0.326,"[{""label"": ""vampire"", ""iou"": 0.965, ""owlv2_score"": 0.427, ""dino_score"": 0.326, ""owlv2_box"": [0.1694, 0.3365, 0.6422, 0.6625], ""dino_box"": [0.1765, 0.3302, 0.6446, 0.6685]}]",0,,,[],0,0
+382290,M・Y・F・A・C・E,2005,1,doll,0.309,"[{""label"": ""doll"", ""iou"": 0.982, ""owlv2_score"": 0.309, ""dino_score"": 0.41, ""owlv2_box"": [0.0139, 0.0957, 0.9781, 0.9053], ""dino_box"": [0.0161, 0.0897, 0.9768, 0.9037]}]",0,,,[],1,0
+440871,Ghost Valley Raiders,1940,0,,,[],2,gun,0.305,"[{""label"": ""gun"", ""iou"": 0.8161, ""owlv2_score"": 0.305, ""dino_score"": 0.449, ""owlv2_box"": [0.1568, 0.7235, 0.2128, 0.0762], ""dino_box"": [0.1594, 0.7183, 0.2142, 0.0907]}, {""label"": ""gun"", ""iou"": 0.5135, ""owlv2_score"": 0.392, ""dino_score"": 0.255, ""owlv2_box"": [0.1593, 0.7239, 0.1677, 0.0357], ""dino_box"": [0.1601, 0.7199, 0.2124, 0.0545]}]",0,1
+444713,Commando 2 - The Black Money Trail,2017,0,,,[],0,,,[],0,0
+453424,Dr. Masher,1969,0,,,[],1,gun,0.339,"[{""label"": ""gun"", ""iou"": 0.7373, ""owlv2_score"": 0.503, ""dino_score"": 0.339, ""owlv2_box"": [0.868, 0.888, 0.1317, 0.031], ""dino_box"": [0.8697, 0.8863, 0.127, 0.0409]}]",0,1
+459420,The Four Just Men,1921,0,,,[],0,,,[],0,0
+482337,Benaam,1999,0,,,[],0,,,[],0,0
+483586,Rites of Blood,2004,0,,,[],0,,,[],0,0
+510733,The Ghost Breaker,1922,0,,,[],0,,,[],0,0
+517574,Doombeach,1989,0,,,[],0,,,[],0,0
+535249,Our Correspondent,1959,0,,,[],0,,,[],0,0
+539980,Maigret at the Minister,1987,2,vampire,0.284,"[{""label"": ""vampire"", ""iou"": 0.8998, ""owlv2_score"": 0.284, ""dino_score"": 0.299, ""owlv2_box"": [0.3789, 0.346, 0.6207, 0.4821], ""dino_box"": [0.3842, 0.3384, 0.6136, 0.5302]}, {""label"": ""vampire"", ""iou"": 0.9509, ""owlv2_score"": 0.214, ""dino_score"": 0.3, ""owlv2_box"": [0.0, 0.4178, 0.5332, 0.4409], ""dino_box"": [0.0031, 0.4161, 0.5226, 0.4547]}]",0,,,[],1,0
+547231,Pizza Hunt,2003,0,,,[],0,,,[],0,0
+548084,The Perfect Murder,1992,0,,,[],0,,,[],0,0
+630737,2099: The Soldier Protocol,2019,0,,,[],0,,,[],0,0
+633786,Faulty Father,2019,0,,,[],0,,,[],0,0
+651517,Riverdead,2007,0,,,[],0,,,[],0,0
+668985,Who Killed Eve?,1934,0,,,[],0,,,[],0,0
+747083,Noite de Lamentações (Night of Wails),2020,0,,,[],0,,,[],0,0
+752825,The Demon,1970,0,,,[],0,,,[],0,0
+752851,Case of a Young Lord 7: Red Crane House,1958,0,,,[],0,,,[],0,0
+781001,That,2012,0,,,[],1,axe,0.284,"[{""label"": ""axe"", ""iou"": 0.3187, ""owlv2_score"": 0.284, ""dino_score"": 0.371, ""owlv2_box"": [0.6513, 0.3307, 0.2843, 0.0586], ""dino_box"": [0.652, 0.3253, 0.2841, 0.1834]}]",0,0
+789473,The Mysterious Mr. Hyde,1964,0,,,[],0,,,[],0,0
+795813,I'm Your Man,2021,0,,,[],0,,,[],0,0
+872243,Darkman,1992,0,,,[],0,,,[],0,0
+921652,Body of Ashes,2022,0,,,[],0,,,[],0,0
+929912,Droga Digitale,2022,0,,,[],0,,,[],0,0
+938049,Donor,2021,0,,,[],0,,,[],0,0
+990167,Dead Pigeon on Beethoven Street,1972,0,,,[],1,gun,0.364,"[{""label"": ""gun"", ""iou"": 0.7935, ""owlv2_score"": 0.583, ""dino_score"": 0.364, ""owlv2_box"": [0.1423, 0.3449, 0.0901, 0.0496], ""dino_box"": [0.1394, 0.3417, 0.0945, 0.0596]}]",0,0
+1013699,The Shining Pyramid,1979,0,,,[],1,arrow,0.226,"[{""label"": ""arrow"", ""iou"": 0.907, ""owlv2_score"": 0.226, ""dino_score"": 0.444, ""owlv2_box"": [0.591, 0.0624, 0.0758, 0.0464], ""dino_box"": [0.5898, 0.0598, 0.0774, 0.0501]}]",0,1
+1068455,All That You Love Will Be Carried Away,2019,0,,,[],0,,,[],0,0
+1075682,Three Silhouettes in Black,1985,0,,,[],0,,,[],0,0
+1114351,Actual Record! Real Horror Posted Video 31,2016,0,,,[],0,,,[],0,0
+1156131,두번째 상봉,1967,0,,,[],0,,,[],0,0
+1225036,Ha Khel Savlyancha,1976,1,vampire,0.237,"[{""label"": ""vampire"", ""iou"": 0.6814, ""owlv2_score"": 0.237, ""dino_score"": 0.34, ""owlv2_box"": [0.0025, 0.1944, 0.4786, 0.7783], ""dino_box"": [0.0019, 0.1847, 0.5069, 0.5696]}]",0,,,[],0,0
+1487521,Conserva,2025,0,,,[],0,,,[],0,0
+1494221,Sticks and Stones: Investigating the Blair Witch,1999,0,,,[],0,,,[],0,0
+1577810,Pandora's Box,2025,0,,,[],0,,,[],0,0
+1615804,The Big Scoop: Challenge at Twilight,1959,0,,,[],0,,,[],0,0
+1634691,Little Signs,2026,0,,,[],0,,,[],0,0
+1638974,Fools in the Dark,1924,1,vampire,0.246,"[{""label"": ""vampire"", ""iou"": 0.9655, ""owlv2_score"": 0.246, ""dino_score"": 0.376, ""owlv2_box"": [0.3024, 0.4863, 0.4041, 0.2451], ""dino_box"": [0.2957, 0.4851, 0.4128, 0.2485]}]",0,,,[],0,0
+1700685,This is Not an Exit,2025,0,,,[],0,,,[],0,0

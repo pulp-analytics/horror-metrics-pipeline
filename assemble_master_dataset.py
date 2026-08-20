@@ -12,8 +12,9 @@ Every *.csv in --data-dir except --base and --skip files is treated as a
 metric file and left-joined onto the base corpus list by "id". Each
 metric file's columns (other than id/title/year, which are redundant
 with the base) are prefixed with "<stem>_" so same-named columns across
-different metric files (e.g. creature_weapon_owlv2.csv and
-creature_weapon_dino.csv both have "creature_n") never collide.
+different metric files (e.g. creature_weapon_owlv2.csv,
+creature_weapon_dino.csv, and creature_weapon_agreement.csv all have
+"creature_n") never collide.
 
 face_expression.csv is a special case: unlike every other file, it has
 multiple rows per poster (one per detected face), so it can't be
