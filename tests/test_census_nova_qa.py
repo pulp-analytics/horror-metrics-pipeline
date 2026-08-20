@@ -62,3 +62,20 @@ def test_fields_declares_expected_columns():
 def test_categories_match_06_clip_census_taxonomy():
     census = importlib.import_module("06_clip_census")
     assert set(qa.CATEGORIES) == set(census.TAXONOMY.keys())
+
+
+def test_clip_label_for_agree_maps_uncertain_to_none():
+    assert qa.clip_label_for_agree("uncertain") == "none"
+    assert qa.clip_label_for_agree("  uncertain  ") == "none"
+    assert qa.clip_label_for_agree("vampire") == "vampire"
+    assert qa.clip_label_for_agree("none") == "none"
+    assert qa.clip_label_for_agree("") == ""
+
+
+def test_labels_agree_treats_clip_uncertain_as_nova_none():
+    assert qa.labels_agree("uncertain", "none")
+    assert not qa.labels_agree("uncertain", "vampire")
+    assert qa.labels_agree("vampire", "vampire")
+    assert qa.labels_agree("none", "none")
+    assert not qa.labels_agree("vampire", "none")
+    assert not qa.labels_agree("none", "vampire")
