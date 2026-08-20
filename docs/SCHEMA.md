@@ -7,6 +7,9 @@ metric exists) is [METHODOLOGY.md](METHODOLOGY.md); findings are
 **Scope of the files themselves:** one CSV per metric, one row per
 poster -- except `face_expression.csv` (one row per detected face) and
 the Nova QA files (one row per sampled judgment, not the full corpus).
+`tests/test_schema_contract.py` checks sample headers against each
+script's `FIELDS` (parsed without importing, so CI does not need pyiqa
+or TensorFlow) and against the pandas `to_csv` shape for 06-09 / 12-13.
 
 ## Conventions
 
