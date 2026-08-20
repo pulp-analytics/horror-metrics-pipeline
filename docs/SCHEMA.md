@@ -217,6 +217,10 @@ No `error` on 25 (it's a join). `--min-iou` default 0.3.
 
 ## Nova QA -- not pipeline outputs
 
+Layer 2–3 of [METHODOLOGY, "How we trust a metric"](METHODOLOGY.md#how-we-trust-a-metric).
+The prompts in `22`/`23`/`24` are settled after several Bedrock runs;
+do not treat a one-shot QA CSV as the citable finding.
+
 `22` creature/weapon boxes: `id`, `source` (`owlv2`/`dino`), `kind`
 (`creature`/`weapon`), `label`, `score`, `box`, `model`, `status`,
 `verdict` (`correct`/`false_positive`/`uncertain`), `actual`, `reason`,

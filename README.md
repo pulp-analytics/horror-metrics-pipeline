@@ -24,7 +24,12 @@ pose, and creature/weapon detection are all built and documented
 (below) -- see docs/RESULTS.md.**
 
 Docs: [METHODOLOGY](docs/METHODOLOGY.md) · [SCHEMA](docs/SCHEMA.md) ·
-[RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md)
+[RESULTS](docs/RESULTS.md) · [MODELS](docs/MODELS.md).
+How we trust a number is
+[METHODOLOGY, "How we trust a metric"](docs/METHODOLOGY.md#how-we-trust-a-metric):
+deterministic re-run where the math allows; CLIP/detectors crossed with
+Nova Pro on a sample (prompts iterated, Bedrock run more than once);
+human `--validate` sets and a decision to cite.
 
 - [Where this runs](#where-this-runs)
 - [Quickstart](#quickstart)
@@ -147,11 +152,13 @@ See docs/RESULTS.md, "Creature/weapon detection."
 
 `22_creature_weapon_nova_qa.py`, `23_census_nova_qa.py`, and
 `24_typography_nova_qa.py` are Nova Pro vision-LLM QA tools, not pipeline
-stages -- they cross-check a detector/classifier's raw output against an
-independent judgment on the same poster, the same methodology behind the
-"roughly 60%+ false positives" claim above. Unlike scripts 01-21, they
-don't compute anything new for the corpus; they grade output that
-already exists. To actually run one:
+stages. They are layer 2 of how we trust a semantic metric (layer 3 is
+a human reading disagreements) -- see docs/METHODOLOGY.md, "How we trust
+a metric." The prompts in those scripts are the settled text after
+several Bedrock runs; live rates in RESULTS are from those repeated
+passes, not one shot. Unlike scripts 01-21, they don't compute anything
+new for the corpus; they grade output that already exists. To actually
+run one:
 
 1. Run the detector/classifier it grades first (its raw output is the
    `--boxes`/`--census`/`--typography` input these three scripts read):
@@ -172,8 +179,8 @@ already exists. To actually run one:
    real posters found, at both scales).
 
 Not wired into `compute_metrics.asl.json` in
-poster-analysis-infrastructure, and never will be -- these are a human
-deciding whether to trust a detector before citing it, the same as the
+poster-analysis-infrastructure, and never will be -- a human decides
+whether to cite a detector after the Nova cross-check, the same as the
 private project's own `qa_*.py` scripts never became pipeline stages
 either. No Step Functions execution runs them automatically.
 

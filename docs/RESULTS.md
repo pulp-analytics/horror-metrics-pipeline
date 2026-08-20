@@ -261,6 +261,11 @@ poster outside the corpus these taxonomies/prompts were built against:
 
 ### Nova QA (23/24): does an independent vision-LLM agree with CLIP?
 
+Layer 2 of how we trust a semantic metric -- see docs/METHODOLOGY.md.
+The prompts in `23`/`24` are the settled text after several Bedrock
+runs and prompt revisions; the table below is from those repeated
+passes (a 40-poster mechanism check), not a single unrehearsed shot.
+
 `23_census_nova_qa.py` and `24_typography_nova_qa.py` port the real
 project's `qa_census.py`/`qa_typography.py`: draw nothing, just ask Nova
 Pro to independently classify the same poster CLIP already scored, then
@@ -606,7 +611,9 @@ a citation from the real project's prior run of its own `qa_creature_weapon_boxe
 -- until now, that script itself had never been ported, so the finding
 could only be taken on faith. `22_creature_weapon_nova_qa.py` ports it:
 draws the detected box in red on the poster, asks Nova Pro whether it's
-really there.
+really there. The prompt in that script is the settled text after
+several Bedrock runs; we did not cite a rate from one pass. See
+docs/METHODOLOGY.md, "How we trust a metric."
 
 Live run, 29 real OWLv2 detections (15 posters spanning multiple genres,
 not exclusively horror -- see caveat below), `us.amazon.nova-pro-v1:0`:

@@ -20,6 +20,9 @@ access (Bedrock's Nova Pro) and is not free to run at any real sample
 size. Deliberately NOT wired into compute_metrics.asl.json -- a QA tool
 for spot-checking 06's output, not a per-poster metric-producing stage.
 
+The `PROMPT` below is the settled text after several Bedrock runs and
+prompt revisions.
+
 `agree` maps CLIP's low-confidence sentinel `"uncertain"` to `"none"`
 before comparing (Nova's taxonomy has no `"uncertain"`; 06/13 write that
 string when score < --min-score). The `clip_label` column still stores
