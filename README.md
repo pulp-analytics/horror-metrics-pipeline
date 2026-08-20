@@ -25,7 +25,9 @@ pose, and creature/weapon detection are all built and documented
 
 ```bash
 pip install -r requirements.txt
-python3 scripts/01_color_metrics.py           # color: CIELAB + k-means palette
+make sample                               # 01-21 + 25, in dependency order; skips files that already exist
+make -B sample                            # force-rebuild every sample CSV (slow: downloads models)
+python3 scripts/01_color_metrics.py       # or run one script: color: CIELAB + k-means palette
 python3 scripts/02_iqa_multi_score.py         # quality: clipiqa/musiq/brisque
 python3 scripts/03_nima_score.py              # quality: NIMA aesthetic score
 python3 scripts/04_laion_aesthetic_score.py   # quality: LAION aesthetic predictor
@@ -49,7 +51,18 @@ python3 scripts/21_creature_weapon_dino.py    # creature/weapon: Grounding DINO 
 python3 scripts/25_creature_weapon_agreement.py  # creature/weapon: OWLv2 ∩ DINO (the citable signal)
 python3 -m pytest tests/ -v -m "not slow"     # -m "not slow" skips tests needing a model download
 make test-fast                               # same as the pytest line above
+```
 
+`make sample` is the dependency graph the individual script lines above
+encode by hand: 05 before 06-09, 11 before 12-13, 14 before 15, 20 and 21
+before 25. It fills in missing files under `data/sample_output/` and is a
+no-op on a clone that already has the checked-in CSVs (CLIP/SigLIP `.npz`
+caches are *not* committed; they are only rebuilt when a CSV that needs
+them is itself missing). Nova QA (22/23/24) is not in `make sample`.
+Override paths with `IN=... OUT=...`. Independent scripts can run in
+parallel: `make -j4 sample`.
+
+```bash
 # optional Nova QA scripts (22/23/24) -- need real AWS/Bedrock access, see below
 python3 scripts/22_creature_weapon_nova_qa.py --boxes data/sample_output/creature_weapon_owlv2.csv --source owlv2 --n 50
 python3 scripts/23_census_nova_qa.py --census data/sample_output/census.csv --n 50
@@ -109,12 +122,12 @@ deciding whether to trust a detector before citing it, the same as the
 private project's own `qa_*.py` scripts never became pipeline stages
 either. No Step Functions execution runs them automatically.
 
-No API key or AWS needed for scripts 01-21 — posters come from TMDB's
+No API key or AWS needed for scripts 01-21 or 25 — posters come from TMDB's
 public image CDN, and the one non-CLIP/SigLIP model (`14`'s YuNet face
 detector) is a small local ONNX file, not a cloud service. Every
-download-capable script (everything except `06`-`09`, `12`-`13`, and
-`15`, which read `05`'s/`11`'s embedding cache or `14`'s face boxes --
-`16`-`21` all download fresh, same as `01`-`04`/`14`) shares one poster cache
+download-capable script (everything except `06`-`09`, `12`-`13`, `15`,
+and `25`, which read `05`'s/`11`'s embedding cache, `14`'s face boxes,
+or 20+21's CSVs -- `16`-`21` all download fresh, same as `01`-`04`/`14`) shares one poster cache
 (`data/posters_cache/`, see `utils/posters.py`): whichever script runs
 first downloads a given poster, the others reuse that file. That cache
 can optionally check S3 first (`--posters-s3-bucket`, matching the real
@@ -135,6 +148,7 @@ that:
 
 ```bash
 python3 assemble_master_dataset.py --data-dir data/sample_output --out master_dataset.csv
+make assemble-sample   # same join
 ```
 
 `data/sample_output/metrics_input.csv` is the 99-poster corpus list
@@ -152,6 +166,7 @@ poster (one per detected face).
 ## Structure
 
 ```
+Makefile                           `make sample` / `make test-fast` / `make assemble-sample`
 scripts/
   01_color_metrics.py          Per-poster brightness/saturation/hue-bands/
                                 dominant-palette (CIELAB, saturation-weighted
@@ -206,10 +221,10 @@ data/
   sample_output/   real, already-computed metrics for those same posters
                     (01-21 plus 25's OWLv2 ∩ DINO agreement), including
                     geometric/depth/saliency/pose and both creature/weapon
-                    detectors, metrics_input.csv as the join base, plus
-                    clip_embeddings.npz and siglip_embeddings.npz generated
-                    for this repo (see docs/RESULTS.md for what's verified
-                    to reproduce exactly vs. what isn't, and why)
+                    detectors, plus metrics_input.csv as the join base
+                    (CLIP/SigLIP .npz caches are generated on demand by
+                    05/11, not committed -- see docs/RESULTS.md for what's
+                    verified to reproduce exactly vs. what isn't, and why)
 docs/
   METHODOLOGY.md   what's computed and why, per category
   RESULTS.md        real findings, per category
@@ -227,6 +242,9 @@ tests/
   test_posters.py           shared poster-cache logic -- confirms the local-
                              cache-hit path never touches the network, and
                              that no AWS import happens when S3 isn't configured
+  test_makefile_sample.py   `make sample` dry-run: 05 before 06-09, 20+21
+                             before 25, Nova QA not in the graph, no-op when
+                             the checked-in CSVs already exist
 ```
 
 ## License
