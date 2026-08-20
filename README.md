@@ -174,7 +174,8 @@ file's columns with its own stem so same-named columns across files
 `creature_weapon_dino.csv`, and `creature_weapon_agreement.csv`) never
 collide. `face_expression.csv` is
 aggregated first since it's the one output with multiple rows per
-poster (one per detected face).
+poster (one per detected face). Column names, units, and sentinels
+(before that prefix) are listed in docs/SCHEMA.md.
 
 ## Structure
 
@@ -243,6 +244,7 @@ data/
                     verified to reproduce exactly vs. what isn't, and why)
 docs/
   METHODOLOGY.md   what's computed and why, per category
+  SCHEMA.md         column names, units, sentinels -- the CSV contract
   RESULTS.md        real findings, per category
   MODELS.md         every model this repo loads, what it resolves to, and
                      how tight the version pin is (SigLIP/LAION/OWLv2/DINO/

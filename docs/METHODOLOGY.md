@@ -1,5 +1,11 @@
 # Methodology
 
+What's computed, and why, per category. Column names, units, and
+sentinels for every output CSV live in [SCHEMA.md](SCHEMA.md) -- this
+file is the why, that one is the contract. Findings and reproduction
+tables live in [RESULTS.md](RESULTS.md). Model pins live in
+[MODELS.md](MODELS.md).
+
 ## Color metrics
 
 ### What gets computed, per poster
@@ -380,3 +386,229 @@ low-confidence on a tiny, low-resolution face crop. Same likely root
 cause as every other CLIP-based reproduction gap in this repo (poster
 bytes/library versions drifting over months), amplified here because face
 crops are a much smaller, noisier image region than a whole poster.
+
+## Geometric composition
+
+Five independent heuristic groups from one downsampled OpenCV frame per
+poster (`16_geometric_composition.py`, analysis width 180px), ported
+verbatim from the real project's `multi_analyze.py`. Despite the
+historical `clip_attributes_*` prefix in that project's master table,
+nothing here is CLIP -- it's Sobel / Canny / MSER / Hough / spectral
+saliency / HSV-histogram math on pixels:
+
+- **composition** -- left-right symmetry on a 64×96 grayscale, negative
+  space (fraction of low-gradient pixels), visual complexity (Canny edge
+  density), center of visual mass (`mass_x` / `mass_y`).
+- **typography** -- MSER glyph-candidate coverage (`text_area`,
+  `text_regions`, vertical centroid `text_y`). This is *not* per-poster
+  title boxes; those come from OCR elsewhere in the private project and
+  must not be confused with this signal.
+- **grid** -- layout-block alignment (`align_score`, `n_blocks`) plus
+  rule-of-thirds distance for the main visual mass (`thirds_dist`),
+  after Lee et al., "Neural Design Network" (ECCV 2020).
+- **aesthetic** -- saliency-centroid vs. geometric-center (`balance`)
+  and dominant-hue distance to classic color-wheel schemes (`harmony`).
+- **diagonal** -- share of Hough-line length that's 25–65° off
+  horizontal (`diagonal_score`), and bottom-third vs. top-third
+  horizontal spread of gradient energy (`pyramid_shift`).
+
+`balance`, `harmony`, `thirds_dist`, and `text_y` use `-1` as "couldn't
+compute" (no saliency map, too-flat hue histogram, no main box, no MSER
+regions). Failed posters are skipped, not written -- this script has no
+`error` column.
+
+### Why OpenCV heuristics, not a layout model
+
+LayoutParser / Detectron2 are trained on document layouts, not
+illustrated poster art, and the real project hit an unresolved Apple
+Silicon checkpoint bug on that path. The five groups above are cheap
+enough to run on CPU at corpus scale, trend-comparable across decades
+(the actual use), and don't claim per-poster "this is the title box"
+truth. MSER in particular is a corpus-trend detector, not OCR.
+
+### What this repo does NOT compute
+
+No decade-level composition aggregates, no LayoutParser boxes, no
+title-OCR crops. The MSER columns are the unresolved reproduction gap
+in this category -- internally deterministic on the same file, wildly
+sensitive to small pixel differences vs. the historical reference. See
+docs/RESULTS.md, "Geometric composition."
+
+## Depth
+
+`17_depth_estimation.py` runs MiDaS_small (torch.hub, pinned -- see
+MODELS.md) and min-max normalizes the inverse-depth map to [0, 1] per
+image. MiDaS depth is relative and scale-ambiguous, so every metric is
+a unitless closeness after that per-poster stretch:
+
+- `mean_depth` -- average closeness across the frame.
+- `p95_depth` -- closeness of the nearest major foreground mass
+  (robust to single-pixel noise a plain max would pick up).
+- `depth_std` -- compositional depth contrast (flat graphic vs.
+  photographic foreground/background split).
+- `close_area_frac` -- fraction of pixels above 0.7 normalized
+  closeness ("how much of the frame is close-up").
+
+### What this repo does NOT compute
+
+No metric-depth in meters, no 3D reconstruction, no decade aggregates.
+The question is "how in-your-face does the foreground read," not
+"how many meters to the monster."
+
+### Reproduction
+
+Byte-exact against the real project's `depth_score.csv` on a 15-poster
+sample -- the cleanest reproduction in this repo. See docs/RESULTS.md,
+"Depth."
+
+## Saliency
+
+`18_saliency_prediction.py` runs MSI-Net (alexanderkroner/MSI-Net, a
+contextual encoder-decoder trained on human eye-tracking fixations) and
+summarizes the predicted heatmap as a probability-like distribution:
+
+- `peak_x`, `peak_y` -- normalized location of the single most salient
+  point (where the eye is predicted to land first).
+- `top10pct_mass` -- fraction of total saliency in the hottest 10% of
+  pixels (focused vs. cluttered).
+- `mean_saliency` -- mostly a sanity/normalization check.
+
+This is the one TensorFlow script in the repo. The SavedModel embeds
+weights as graph constants; restoring it under protobuf's default C++
+backend hard-crashes the process. The script forces protobuf's
+pure-Python implementation before importing tensorflow -- a runtime
+backend switch, not a package pin. Details in docs/RESULTS.md,
+"Saliency," and the script's own docstring.
+
+### What this repo does NOT compute
+
+No scanpath, no multi-fixation sequence, no overlay images. The
+heatmap is collapsed to four scalars per poster.
+
+### Reproduction
+
+Byte-exact on an 8-poster sample against the real `saliency_score.csv`.
+The protobuf workaround changes how the graph is deserialized, not the
+tensor math afterward.
+
+## Pose
+
+`19_pose_dynamism.py` is two-stage: YOLOv8n finds person boxes, ViTPose
+(COCO-17) estimates the skeleton inside the largest box (the primary
+figure).
+
+- `n_persons` -- YOLOv8n count; `0` is a legitimate answer (plenty of
+  posters have no legible human figure).
+- `kpt_bbox_area_frac` -- bounding box of confident keypoints over the
+  person's detection box. Low = compact/static; high = limbs spread
+  (running, falling, reaching).
+- `limb_asymmetry` -- mean absolute left/right limb-position difference
+  relative to torso center. Symmetric standing scores low;
+  mid-stride/off-balance scores high. Empty when torso keypoints aren't
+  confident enough.
+- `mean_kpt_confidence` -- sanity: a heavily painted figure the models
+  weren't trained on scores low.
+- `box`, `keypoints` -- JSON of the person box and the 17 COCO
+  keypoints in poster pixel space, for drawing later.
+
+Unlike the real project's version, this port does **not** pre-filter
+`--in` to YuNet-detected-face ids. That filter was a 145k-poster
+compute-cost optimization (~40% of the corpus has no legible body), not
+a correctness requirement. This repo's per-script independence
+convention means `n_persons=0` is computed directly instead of skipped.
+
+### What this repo does NOT compute
+
+No multi-person skeletons (only the largest box), no action-class
+labels, no decade aggregates.
+
+### Reproduction
+
+Essentially exact (floating-point rounding only) on a 12-poster sample
+restricted to posters the real project recorded at least one person
+for. See docs/RESULTS.md, "Pose."
+
+## Creature/weapon detection
+
+Two independent zero-shot open-vocabulary detectors over the **same**
+18-phrase creature vocabulary and 12-phrase weapon vocabulary, plus a
+join that is the citable signal:
+
+- **`20_creature_weapon_owlv2.py`** -- OWLv2 (`google/owlv2-base-patch16`).
+- **`21_creature_weapon_dino.py`** -- Grounding DINO
+  (`IDEA-Research/grounding-dino-tiny`). `CREATURE_QUERIES` /
+  `WEAPON_QUERIES` are intentionally identical to 20's -- keep them in
+  sync.
+- **`25_creature_weapon_agreement.py`** -- no model. Reads both CSVs and
+  keeps a detection only when the two agree on label **and** the boxes
+  overlap (IoU >= `--min-iou`, default 0.3 -- illustrated-poster boxes
+  are looser than COCO).
+
+Each of 20/21/25 writes the same per-kind shape so they left-join
+cleanly: `creature_n` / `creature_top_label` / `creature_top_score` /
+`creature_boxes`, and the weapon equivalents. Boxes are normalized
+xywh, area-filtered (0.002–0.95 of the frame), truncated to top-3 by
+score. 25 additionally writes `creature_label_agree` /
+`weapon_label_agree`: 1 iff both detectors' non-empty `top_label`
+strings match, even without overlap -- a looser poster-level check.
+The `n` / `top_*` / `boxes` columns on 25 are the stricter, citable
+intersection.
+
+### Why two detectors and a join, not one
+
+A blind Nova Pro QA pass over the real project's OWLv2-only output
+found roughly 60%+ of "creature detected" boxes were false positives
+(62.5% at n=1000, now reproduced inside this repo -- see RESULTS).
+Neither 20 nor 21 is ground truth. Cite `creature_weapon_agreement.csv`,
+not either detector alone, and don't treat even the intersection as
+verified presence (two detectors can independently draw a face-sized
+"vampire" box).
+
+### What this repo does NOT compute
+
+No closed-set detector trained on poster art, no Rekognition labels, no
+decade counts of "how many vampires." 20 and 21 stay noisy candidates
+on purpose; 25 is the filter, not a third model.
+
+### Reproduction
+
+Discrete outputs (`n`, `top_label`) matched the real project's OWLv2 /
+DINO JSON on 8 posters almost exactly (one OWLv2 poster: one fewer box
+past the score threshold). See docs/RESULTS.md, "Creature/weapon
+detection."
+
+## Nova QA (22 / 23 / 24)
+
+Not pipeline stages. They grade output that already exists -- the same
+role the private project's `qa_*.py` scripts never graduated into
+Step Functions for. They need Bedrock (`us.amazon.nova-pro-v1:0`) and
+are deliberately absent from `make sample` and from
+`compute_metrics.asl.json`. Composition / depth / saliency / pose are
+continuous geometric measurements; there is no comparable "Nova, is
+this number right?" question, which is why those categories have no QA
+script.
+
+- **`22_creature_weapon_nova_qa.py`** -- draws a detected box in red,
+  asks whether that rectangle actually contains the predicted
+  creature/weapon. Verdicts: `correct` / `false_positive` /
+  `uncertain`. This is the mechanism behind the ~62.5% OWLv2
+  false-positive figure.
+- **`23_census_nova_qa.py`** -- Nova picks one label from 06's taxonomy
+  plus `none` (never `uncertain`). `agree` maps CLIP's low-confidence
+  sentinel `uncertain` onto `none` before comparing; `clip_label` still
+  stores the census string as-is. 06/13 CSVs are not rewritten.
+- **`24_typography_nova_qa.py`** -- bins 08's continuous axis into five
+  registers via corpus-wide quantiles (`bin_register`), then asks Nova
+  for an independent register. Those quantile buckets live here, not in
+  08, because they are relative to whatever corpus you happen to be
+  scoring. `agree_adjacent` is ±1 register.
+
+Sample size `--n` is a spot-check at 50 and a citable finding at
+1000+. Not shardable: these are a human deciding whether to trust a
+detector, not a per-poster metric loop.
+
+### What this repo does NOT compute
+
+No Nova-derived columns in the metric CSVs. A QA run does not replace
+06, 08, 20, or 21. Findings from live runs are in docs/RESULTS.md,
+"Nova QA" subsections.
