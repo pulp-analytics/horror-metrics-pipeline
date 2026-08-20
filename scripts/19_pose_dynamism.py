@@ -66,6 +66,7 @@ import torch
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).parent))
+from utils.device import add_device_arg, pick_device
 from utils.logging_setup import get_logger
 from utils.posters import add_poster_source_args, fetch_poster_file
 from utils.resumable import load_done_ids, open_for_append, shard_rows
@@ -131,14 +132,14 @@ def ensure_yolo(path: Path) -> Path:
     return path
 
 
-def load_models(yolo_path: Path | str = DEFAULT_YOLO_PATH):
+def load_models(device: str, yolo_path: Path | str = DEFAULT_YOLO_PATH):
     from ultralytics import YOLO
     from transformers import AutoProcessor, VitPoseForPoseEstimation
 
     yolo = YOLO(str(ensure_yolo(Path(yolo_path))))
     processor = AutoProcessor.from_pretrained(VITPOSE_ID, revision=VITPOSE_REVISION)
     model = VitPoseForPoseEstimation.from_pretrained(
-        VITPOSE_ID, revision=VITPOSE_REVISION).eval()
+        VITPOSE_ID, revision=VITPOSE_REVISION).to(device).eval()
     return yolo, processor, model
 
 
@@ -179,9 +180,9 @@ def compute_metrics(keypoints: np.ndarray, scores: np.ndarray, box: list[float])
     }
 
 
-def analyze_pose(yolo, processor, model, img_path: Path) -> dict:
+def analyze_pose(yolo, processor, model, img_path: Path, device: str) -> dict:
     img = Image.open(img_path).convert("RGB")
-    yres = yolo(str(img_path), classes=[0], verbose=False)
+    yres = yolo(str(img_path), classes=[0], verbose=False, device=device)
     boxes = yres[0].boxes.xyxy.cpu().numpy().tolist() if yres[0].boxes is not None else []
 
     row = {"n_persons": len(boxes), "kpt_bbox_area_frac": "", "limb_asymmetry": "",
@@ -191,13 +192,18 @@ def analyze_pose(yolo, processor, model, img_path: Path) -> dict:
 
     # largest box = primary/foreground figure
     boxes.sort(key=lambda b: (b[2] - b[0]) * (b[3] - b[1]), reverse=True)
-    inputs = processor(img, boxes=[boxes[:1]], return_tensors="pt")
+    inputs = processor(img, boxes=[boxes[:1]], return_tensors="pt").to(device)
     with torch.no_grad():
         outputs = model(**inputs)
     results = processor.post_process_pose_estimation(outputs, boxes=[boxes[:1]])
     person = results[0][0]
-    kpts = person["keypoints"].numpy()
-    scores = person["scores"].numpy()
+    kpts = person["keypoints"]
+    scores = person["scores"]
+    if hasattr(kpts, "detach"):
+        kpts = kpts.detach().cpu().numpy()
+        scores = scores.detach().cpu().numpy()
+    else:
+        kpts, scores = np.asarray(kpts), np.asarray(scores)
 
     metrics = compute_metrics(kpts, scores, boxes[0])
     row.update({k: (v if v is not None else "") for k, v in metrics.items()})
@@ -212,13 +218,16 @@ def main():
     ap.add_argument("--in", dest="in_path", default="data/sample_input/sample_100_posters.csv")
     ap.add_argument("--out", default="data/sample_output/pose_dynamism.csv")
     add_poster_source_args(ap)
+    add_device_arg(ap)
     ap.add_argument("--shard-index", type=int, default=0)
     ap.add_argument("--shard-count", type=int, default=1, help="split --in across N parallel shards (default 1: no sharding)")
     args = ap.parse_args()
 
+    device = pick_device(args.device)
+    log.info(f"device={device}")
     log.info("loading YOLOv8n (person detector)...")
     log.info("loading ViTPose...")
-    yolo, processor, model = load_models()
+    yolo, processor, model = load_models(device)
     log.info("models loaded")
 
     with open(args.in_path, newline="", encoding="utf-8") as f:
@@ -247,7 +256,7 @@ def main():
                 n_err += 1
             else:
                 try:
-                    out.update(analyze_pose(yolo, processor, model, poster_file))
+                    out.update(analyze_pose(yolo, processor, model, poster_file, device))
                     n_ok += 1
                 except Exception as e:
                     out["error"] = str(e)[:200]
