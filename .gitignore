@@ -246,3 +246,6 @@ data/sample_output/*.npz
 
 # assemble_master_dataset.py / `make assemble-sample` flat join -- derived
 master_dataset.csv
+
+# flock sidecar for open_for_append (see scripts/utils/resumable.py)
+*.csv.lock
