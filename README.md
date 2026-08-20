@@ -266,6 +266,7 @@ tests/
   test_device.py            cuda > mps > cpu pick, including --device override
   test_pyproject_extras.py  cpu / tf-saliency / bedrock extras; default
                              install does not pull tensorflow or boto3
+  test_schema_contract.py   sample CSV headers match script FIELDS / SCHEMA
 ```
 
 ## License
