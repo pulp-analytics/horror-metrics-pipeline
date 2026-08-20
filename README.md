@@ -26,7 +26,7 @@ pose, and creature/weapon detection are all built and documented
 ```bash
 pip install -r requirements.txt
 make sample                               # 01-21 + 25, in dependency order; skips files that already exist
-make -B sample                            # force-rebuild every sample CSV (slow: downloads models)
+# rebuild one metric: delete its CSV, then make sample
 python3 scripts/01_color_metrics.py       # or run one script: color: CIELAB + k-means palette
 python3 scripts/02_iqa_multi_score.py         # quality: clipiqa/musiq/brisque
 python3 scripts/03_nima_score.py              # quality: NIMA aesthetic score

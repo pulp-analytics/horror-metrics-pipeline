@@ -5,6 +5,7 @@ checked-in data/sample_output/ CSVs must not be rebuilt by a plain
 `make sample` (that would overwrite the citable sample)."""
 from __future__ import annotations
 
+import os
 import subprocess
 from pathlib import Path
 
@@ -67,4 +68,28 @@ def test_make_sample_is_noop_when_checked_in_outputs_exist():
     log = result.stdout + result.stderr
     assert "01_color_metrics.py" not in log
     assert "20_creature_weapon_owlv2.py" not in log
+    assert "25_creature_weapon_agreement.py" not in log
+
+
+def test_make_sample_is_noop_even_when_scripts_are_newer_than_csvs():
+    """GitHub Actions extracts scripts/ after data/, so script mtimes look
+    newer than the checked-in CSVs. Timestamp deps would overwrite the
+    sample; recipes must not be registered for files that already exist."""
+    scripts = list((ROOT / "scripts").glob("*.py"))
+    times = {p: p.stat() for p in scripts}
+    try:
+        for p in scripts:
+            os.utime(p, None)
+        result = subprocess.run(
+            ["make", "-n", "sample"],
+            cwd=ROOT,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    finally:
+        for p, st in times.items():
+            os.utime(p, (st.st_atime, st.st_mtime))
+    log = result.stdout + result.stderr
+    assert "01_color_metrics.py" not in log
     assert "25_creature_weapon_agreement.py" not in log
