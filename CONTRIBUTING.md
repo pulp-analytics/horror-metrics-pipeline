@@ -69,7 +69,8 @@ Do:
   [docs/METHODOLOGY.md](docs/METHODOLOGY.md). Semantic metrics must
   stay compatible with the three validation layers (deterministic or
   reproducible compute, second model / Nova on a sample after prompt
-  iteration, human `--validate` / cite decision). Check in a sample CSV
+  iteration, human `--validate` / blind HTML review pages / cite
+  decision). Check in a sample CSV
   under `data/sample_output/` and keep
   `tests/test_schema_contract.py` green.
 - Test pure functions without model downloads. `@pytest.mark.slow` is

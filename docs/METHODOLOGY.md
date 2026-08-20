@@ -41,14 +41,12 @@ In poster-analysis-infrastructure this sampled pass belongs in
 `compute_metrics.asl.json` after the metric it grades; that state is
 not in the ASL yet.
 
-**3. Human ground truth.** Someone looked at famous posters and recorded
-expected labels (`--validate` on census, faces, fear and typography
-axes). Someone reads Nova's `reason` / `actual` on disagreements and
-decides whether the metric is citable (cite `25`, not 20 alone; do not
-rewrite `06`'s `uncertain` to match Nova). The human does not relabel
-the corpus. This is the same layer as poster-corpus-validation's blind
-reviews, not the same tooling: no HTML review pages and no 2,500-row
-`ground_truth/` dump here. Genre-vs-IMDb skips this leg (catalog tags).
+**3. Human ground truth.** Blind review pages in `scripts/qa/build_*_review_page.py`
+(same pattern as poster-corpus-validation): poster + question, never
+CLIP/Nova scores. Generated HTML is gitignored. `--validate` sets on
+famous posters remain a small in-script check. Genre-vs-IMDb skips this
+leg (catalog tags). Cite `25`, not 20 alone; do not rewrite `06`'s
+`uncertain` to match Nova.
 
 ## Color metrics
 

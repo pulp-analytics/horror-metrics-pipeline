@@ -103,20 +103,25 @@ Tables: [RESULTS](docs/RESULTS.md) "Nova QA."
    after the metric it grades; that state is **not in the ASL yet**.
    `make sample` stays Bedrock-free.
 
-3. **Human ground truth.** `--validate` sets on famous posters (someone
-   looked at the artwork). Then someone reads Nova's `reason` / `actual`
-   on disagreements and decides what to cite (`25`, not 20 alone; do not
-   rewrite `06`'s `uncertain` to match Nova). The human does not relabel
-   the corpus. This repo does **not** ship the sibling's blind HTML
-   review pages (`scripts/qa/build_*_review_page.py`) or its 2,500+
-   `data/ground_truth/` rows. Genre-vs-IMDb
+3. **Human ground truth (blind HTML).** Same layer as
+   poster-corpus-validation: `scripts/qa/build_*_review_page.py` write a
+   self-contained page (`data/ground_truth/*_review.html`, generated,
+   gitignored) that shows the poster and a plain question — never CLIP
+   scores or Nova verdicts. Export CSV, then join. `--validate` sets on
+   famous posters remain a small in-script check. Genre-vs-IMDb
    (`scripts/qa/validate_genre_classifier_vs_imdb.py`) uses curated
-   catalog tags, so it skips the human-review leg — the same exception
-   the sibling makes for IMDb `isAdult`.
+   catalog tags, so it skips this leg — the same exception the sibling
+   makes for IMDb `isAdult`.
 
-To run a sampled Nova pass: extra `[bedrock]`, `bedrock:InvokeModel` on
-`us.amazon.nova-pro-v1:0`, then `22`/`23`/`24` with `--n` against CSVs
-that already exist (`--boxes` / `--census` / `--typography`).
+To run a sampled Nova pass: extra `[bedrock]`, then `22`/`23`/`24` with
+`--n`. To collect the human layer on the 99-poster sample (no Bedrock):
+
+```bash
+python3 scripts/qa/build_census_review_page.py
+python3 scripts/qa/build_typography_review_page.py
+python3 scripts/qa/build_creature_weapon_review_page.py
+# open data/ground_truth/*_review.html  — file://, labels stay in the browser until Export CSV
+```
 
 ## Quickstart
 
@@ -292,9 +297,12 @@ scripts/
   24_typography_nova_qa.py       Nova Pro QA of 08's CLIP typography axis --
                                   sampled methodology
   qa/
+    build_census_review_page.py           blind HTML for 06 (no CLIP labels)
+    build_typography_review_page.py       blind HTML for 08 (no CLIP axis)
+    build_creature_weapon_review_page.py  blind HTML for 20/21 boxes (no scores)
+    review_page.py                        shared page template (localStorage + CSV export)
     validate_genre_classifier_vs_imdb.py  09 vs IMDb genres -- catalog GT,
-                                  not a pipeline stage (skips human-review
-                                  leg; see Validation methodology)
+                                  skips human-review leg
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
@@ -313,8 +321,8 @@ data/
                     (CLIP/SigLIP .npz caches are generated on demand by
                     05/11, not committed -- see docs/RESULTS.md for what's
                     verified to reproduce exactly vs. what isn't, and why)
-  ground_truth/    genre-vs-IMDb sample + results (catalog tags, not blind
-                    poster review -- see Validation methodology)
+  ground_truth/    generated `*_review.html` (gitignored) + exported human
+                    CSVs; genre-vs-IMDb sample (catalog tags)
 docs/
   METHODOLOGY.md   what's computed and why, per category
   SCHEMA.md         column names, units, sentinels -- the CSV contract
@@ -343,6 +351,7 @@ tests/                             `make test-fast` = pytest -m "not slow"
   test_pyproject_extras.py          cpu / tf-saliency / bedrock extras
   test_readme_inventory.py          README Structure names every test_*.py
   test_resumable.py                 flock, 0-byte header, no duplicate ids
+  test_review_pages.py              blind HTML builders omit CLIP/Nova scores
   test_saliency_prediction.py       18: heatmap summary (slow: live MSI-Net)
   test_sample_output_contract.py    99-poster sample: one row per id, assemble
   test_schema_contract.py           sample headers match FIELDS / SCHEMA
