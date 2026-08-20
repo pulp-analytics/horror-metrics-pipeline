@@ -24,7 +24,9 @@ pose, and creature/weapon detection are all built and documented
 ## Quickstart
 
 ```bash
-pip install -r requirements.txt
+pip install -e ".[cpu]"                   # 01-17, 19-21, 25 (no TensorFlow, no AWS)
+# pip install -e ".[cpu,tf-saliency]"     # plus 18 MSI-Net
+# pip install -e ".[all]"                 # plus Nova QA / optional S3 poster cache
 make sample                               # 01-21 + 25, in dependency order; skips files that already exist
 # rebuild one metric: delete its CSV, then make sample
 python3 scripts/01_color_metrics.py       # or run one script: color: CIELAB + k-means palette
@@ -70,10 +72,15 @@ python3 scripts/24_typography_nova_qa.py --typography data/sample_output/typogra
 ```
 
 GitHub Actions runs `make test-fast` on every push and PR to `main`
-(`.github/workflows/test.yml`). It installs `requirements-ci.txt`, a
-subset of `requirements.txt` that skips tensorflow/pyiqa/ultralytics --
-those are only needed by `@pytest.mark.slow` tests or by `load_*`
-helpers the fast suite never calls.
+(`.github/workflows/test.yml`). It installs the default extra-free
+dependencies (`pip install -e .` / `requirements-ci.txt`): no
+tensorflow, pyiqa, ultralytics, or boto3 -- those are only needed by
+`18`, `02`/`03`, `19`, and Nova QA/`--posters-s3-bucket` respectively,
+or by `@pytest.mark.slow` tests. `pip install -e ".[cpu]"` is the
+laptop pipeline; `".[all]"` matches the old flat `requirements.txt`.
+Lower bounds live in `pyproject.toml`. There is no platform lock file:
+torch wheels differ across macOS / CPU Linux / CUDA, so a single
+`uv.lock` / `pip freeze` would lie to the other two.
 
 `18_saliency_prediction.py` (MSI-Net) loads a legacy TF SavedModel that
 crashes under TensorFlow/protobuf's default C++ backend -- the script
@@ -173,6 +180,7 @@ poster (one per detected face).
 
 ```
 Makefile                           `make sample` / `make test-fast` / `make assemble-sample`
+pyproject.toml                     extras: cpu / tf-saliency / bedrock
 scripts/
   01_color_metrics.py          Per-poster brightness/saturation/hue-bands/
                                 dominant-palette (CIELAB, saturation-weighted
@@ -253,6 +261,8 @@ tests/
                              before 25, Nova QA not in the graph, no-op when
                              the checked-in CSVs already exist
   test_device.py            cuda > mps > cpu pick, including --device override
+  test_pyproject_extras.py  cpu / tf-saliency / bedrock extras; default
+                             install does not pull tensorflow or boto3
 ```
 
 ## License

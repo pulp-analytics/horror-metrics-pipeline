@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "poster-metrics-pipeline"
+version = "0.1.0"
+description = "Per-poster metrics pipeline for The Anatomy of Fear"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+# Fast-test / CI subset: 01, 05-17, 20, 21, 25 plus pytest. No pyiqa
+# (02/03), ultralytics (19), tensorflow (18), or boto3 (22-24 / S3).
+dependencies = [
+    "numpy>=1.26",
+    "pandas>=2.1",
+    "requests>=2.31",
+    "Pillow>=10.0",
+    "scikit-learn>=1.3",
+    "pytest>=7.4",
+    "opencv-contrib-python>=4.8",
+    "torch>=2.1",
+    "open_clip_torch>=2.24",
+    "transformers>=4.40",
+    "huggingface_hub>=0.20",
+]
+
+[project.optional-dependencies]
+# Laptop pipeline: 02-04 (pyiqa) and 19 (YOLOv8n). Still no TensorFlow, no AWS.
+cpu = [
+    "pyiqa>=0.1.11",
+    "ultralytics>=8.3",
+]
+# 18_saliency_prediction.py -- MSI-Net's legacy TF SavedModel (~GB).
+tf-saliency = [
+    "tensorflow>=2.16",
+]
+# Nova QA (22/23/24) and optional --posters-s3-bucket in utils/posters.py.
+bedrock = [
+    "boto3>=1.34",
+]
+all = [
+    "poster-metrics-pipeline[cpu,tf-saliency,bedrock]",
+]
+
+[tool.setuptools]
+# Scripts stay `python3 scripts/01_....py`; this project table exists so
+# pip extras work. helpers under scripts/utils/ are imported via sys.path.
+packages = []

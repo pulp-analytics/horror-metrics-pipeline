@@ -1,41 +1,6 @@
-numpy>=1.26
-pandas>=2.1
-requests>=2.31
-Pillow>=10.0
-scikit-learn>=1.3
-pytest>=7.4
-
-# perceptual-quality category (02/03/04) -- heavy ML deps, CPU-only works
-# but is slow; a CUDA-enabled torch install is much faster if you have a GPU
-torch>=2.1
-pyiqa>=0.1.11
-open_clip_torch>=2.24
-huggingface_hub>=0.20
-
-# SigLIP category (11-13) -- google/siglip-base-patch16-224 via transformers
-transformers>=4.40
-
-# faces (14-15) + geometric composition (16) -- YuNet plus cv2.saliency
-# (contrib extra; opencv-python alone has no cv2.saliency module)
-opencv-contrib-python>=4.8
-
-# depth category (17) -- MiDaS_small via torch.hub (fetches its own weights;
-# no new pip package -- timm, its one extra dependency, already comes in
-# transitively via open_clip_torch above)
-
-# saliency category (18) -- MSI-Net's legacy TF SavedModel; loading it via
-# tf.keras.layers.TFSMLayer or plain tf.saved_model.load() hard-crashes
-# under protobuf's default C++/upb backend (see docs/RESULTS.md,
-# "Saliency") -- 18_saliency_prediction.py works around this itself by
-# forcing protobuf's pure-Python backend, no special install step needed.
-tensorflow>=2.16
-
-# pose category (19) -- YOLOv8n person detection; ViTPose itself is served
-# through transformers (already a dependency, SigLIP category)
-ultralytics>=8.3
-
-# creature/weapon Nova QA (22) -- the one script in this repo that needs
-# real AWS access (Bedrock's Nova Pro), see its own module docstring.
-# Every other script here is boto3-free unless you opt into
-# --posters-s3-bucket (see utils/posters.py).
-boto3>=1.34
+# Full local install: CPU pipeline + MSI-Net + Nova/S3.
+# Prefer the extras directly:
+#   pip install -e ".[cpu]"                 # 01-17, 19-21, 25
+#   pip install -e ".[cpu,tf-saliency]"     # plus 18
+#   pip install -e ".[all]"                 # plus Nova QA / S3
+-e ".[all]"
