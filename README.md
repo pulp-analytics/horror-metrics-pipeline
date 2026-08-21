@@ -237,32 +237,47 @@ poster (one per detected face). Column names, units, and sentinels
 ## Reconciling overlapping signals
 
 Some questions now have more than one engine answering them: "is there an
-animal" (CLIP's `06_clip_census.py` zero-shot taxonomy vs. Rekognition's
-`26_rekognition_enrich.py` label flag), and "is there a weapon" (OWLv2 and
-DINO's own zero-shot detectors, now joined by Rekognition's flag too).
-This already happened once for creature/weapon detection specifically --
-OWLv2 alone measured 58-67% false positives, and agreement between OWLv2
-and DINO turned out to be the trustworthy signal, not either engine alone
-(see docs/RESULTS.md, "Creature/weapon detection"). Rather than assume
-that pattern generalizes, `scripts/qa/build_signal_reconciliation_review_page.py`
-+ `scripts/qa/compare_signal_engines.py` re-run the same test for each new
-overlapping pair:
+animal" (CLIP's `06_clip_census.py`, Rekognition's `26_rekognition_enrich.py`,
+Nova's `27_nova_scene_enrich.py`), "is there a weapon" (OWLv2, DINO,
+Rekognition, Nova), and "is there a monster/supernatural creature" (CLIP,
+OWLv2, DINO, Nova). This already happened once for creature/weapon
+detection specifically -- OWLv2 alone measured 58-67% false positives,
+and agreement between OWLv2 and DINO turned out to be the trustworthy
+signal, not either engine alone (see docs/RESULTS.md, "Creature/weapon
+detection"). Rather than assume that pattern generalizes to every new
+overlapping pair, `scripts/qa/build_signal_reconciliation_review_page.py`
++ `scripts/qa/compare_signal_engines.py` re-run the same test each time a
+new engine starts answering a question another one already does:
 
 ```bash
-python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal
+python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal   # or weapon, monster
 # review data/qa/animal_reconciliation_review.html, export its CSV
 python3 scripts/qa/compare_signal_engines.py --signal animal --human data/qa/animal_reconciliation_human_review.csv
 ```
 
 The review page is blind (no engine's verdict shown) and stratifies
 toward disagreement cases first, same reasoning as the sibling
-poster-corpus-validation repo's mega-prompt review. The comparison script
-scores every available engine, plus every any-agree/all-agree combination
-across 2+ engines, against the human labels -- and skips engines whose
-output file doesn't exist yet, so it's meant to be re-run as each engine's
-data lands (in particular once AWS access is available for
-`26_rekognition_enrich.py`), not run once with everything already in
-place.
+poster-corpus-validation repo's mega-prompt review -- disagreement can be
+large: a 3-engine dry run of `--signal monster` against this repo's
+99-poster sample (CLIP + OWLv2 + DINO, before Nova/Rekognition had any
+data) found 87/99 posters where the three don't all agree, underscoring
+how noisy this specific category already was known to be (see
+docs/RESULTS.md's Nova QA section on creature detections). The comparison
+script scores every available engine, plus every any-agree/all-agree
+combination across 2+ engines, against the human labels -- and skips
+engines whose output file doesn't exist yet, so it's meant to be re-run
+as each engine's data lands (in particular once AWS access is available
+for `26_rekognition_enrich.py`/`27_nova_scene_enrich.py`), not run once
+with everything already in place.
+
+`27_nova_scene_enrich.py`'s own docstring raises an open methodological
+question worth resolving with this same tool once it has real data:
+its `nova_weapon`/`nova_monster`/`nova_animal` fields are combined in one
+call with descriptive fields (mood, fear labels, a text description)
+rather than isolated the way title-text (gate 6) and moderation (gate 15)
+were after evidence showed combining hurt those specifically -- there's
+no equivalent evidence yet for these fields, and the reconciliation
+scores against human review are exactly what would surface it if true.
 
 ## Structure
 
@@ -315,6 +330,12 @@ scripts/
   26_rekognition_enrich.py       AWS Rekognition labels/image-quality/face-demographics
                                   -- needs AWS, a real per-poster metric (unlike 22-24),
                                   not yet live-verified or wired into compute_metrics.asl.json
+  27_nova_scene_enrich.py        Nova Pro mood/fear-labels/description + its own
+                                  weapon/monster/person/animal presence reads -- the
+                                  remaining fields from the real project's combined
+                                  enrich call not already isolated as gate 6/15 --
+                                  needs AWS, not yet live-verified or wired into
+                                  compute_metrics.asl.json
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
@@ -329,7 +350,7 @@ scripts/
     build_signal_reconciliation_review_page.py, compare_signal_engines.py
                                             blind human review + scoring for signals
                                             two or more engines both claim to answer
-                                            (animal, weapon) -- see "Reconciling
+                                            (animal, weapon, monster) -- see "Reconciling
                                             overlapping signals" below. For
                                             creature/weapon specifically, prefer
                                             25_creature_weapon_agreement.py's
@@ -368,6 +389,7 @@ tests/                             `make test-fast` = pytest -m "not slow"
   test_geometric_composition.py     16: OpenCV heuristics
   test_makefile_sample.py           make sample graph; Nova not in it
   test_model_pins.py                Hub/GitHub/file loads have a revision
+  test_nova_scene_enrich.py         27: _fear_labels/_score/_join_list
   test_pose_dynamism.py             19: compute_metrics
   test_posters.py                   cache hit never touches the network
   test_pyproject_extras.py          cpu / tf-saliency / bedrock extras

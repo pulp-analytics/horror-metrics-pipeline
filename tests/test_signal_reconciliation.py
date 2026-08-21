@@ -12,16 +12,24 @@ import compare_signal_engines as compare  # noqa: E402
 
 # ---- verdict extraction ----
 
-def test_census_verdict_true():
-    assert build_page._census_verdict({"is_animal": "True", "score": "0.8"}) == (True, 0.8)
+def test_census_flag_verdict_true():
+    f = build_page._census_flag_verdict("is_animal")
+    assert f({"is_animal": "True", "score": "0.8"}) == (True, 0.8)
 
 
-def test_census_verdict_false():
-    assert build_page._census_verdict({"is_animal": "False", "score": "0.3"}) == (False, 0.3)
+def test_census_flag_verdict_false():
+    f = build_page._census_flag_verdict("is_animal")
+    assert f({"is_animal": "False", "score": "0.3"}) == (False, 0.3)
 
 
-def test_census_verdict_empty_row_is_none():
-    assert build_page._census_verdict({}) is None
+def test_census_flag_verdict_empty_row_is_none():
+    f = build_page._census_flag_verdict("is_animal")
+    assert f({}) is None
+
+
+def test_census_flag_verdict_works_for_is_creature_too():
+    f = build_page._census_flag_verdict("is_creature")
+    assert f({"is_creature": "True", "score": "0.6"}) == (True, 0.6)
 
 
 def test_weapon_boxes_verdict_positive():
@@ -38,20 +46,35 @@ def test_weapon_boxes_verdict_bad_input_is_none():
     assert build_page._weapon_boxes_verdict({"weapon_n": "not-a-number"}) is None
 
 
-def test_rek_flag_verdict_above_threshold():
-    f = build_page._rek_flag_verdict("rek_animal")
+def test_creature_boxes_verdict_positive():
+    v = build_page._creature_boxes_verdict({"creature_n": "3", "creature_top_score": "0.42"})
+    assert v == (True, 0.42)
+
+
+def test_creature_boxes_verdict_zero_boxes():
+    v = build_page._creature_boxes_verdict({"creature_n": "0", "creature_top_score": ""})
+    assert v == (False, 0.0)
+
+
+def test_score_field_verdict_above_threshold():
+    f = build_page._score_field_verdict("rek_animal")
     assert f({"rek_animal": "0.7"}) == (True, 0.7)
 
 
-def test_rek_flag_verdict_below_threshold():
-    f = build_page._rek_flag_verdict("rek_animal")
+def test_score_field_verdict_below_threshold():
+    f = build_page._score_field_verdict("rek_animal")
     assert f({"rek_animal": "0.2"}) == (False, 0.2)
 
 
-def test_rek_flag_verdict_missing_field_is_none():
-    f = build_page._rek_flag_verdict("rek_weapon")
+def test_score_field_verdict_missing_field_is_none():
+    f = build_page._score_field_verdict("rek_weapon")
     assert f({}) is None
     assert f({"rek_weapon": ""}) is None
+
+
+def test_score_field_verdict_works_for_nova_fields_too():
+    f = build_page._score_field_verdict("nova_animal")
+    assert f({"nova_animal": "0.9"}) == (True, 0.9)
 
 
 # ---- select_sample: disagreement/positive/negative categorization ----
@@ -83,8 +106,8 @@ def test_select_sample_stratifies_disagreement_first(tmp_path, monkeypatch):
     monkeypatch.setitem(build_page.ENGINES, "animal", {
         "question": build_page.ENGINES["animal"]["question"],
         "sources": [
-            ("clip_census", census_csv, build_page._census_verdict),
-            ("rekognition", rek_csv, build_page._rek_flag_verdict("rek_animal")),
+            ("clip_census", census_csv, build_page._census_flag_verdict("is_animal")),
+            ("rekognition", rek_csv, build_page._score_field_verdict("rek_animal")),
         ],
     })
 
@@ -100,7 +123,7 @@ def test_select_sample_raises_when_no_engine_has_usable_data(tmp_path, monkeypat
     monkeypatch.setattr(build_page, "SAMPLE_INPUT", base_csv)
     monkeypatch.setitem(build_page.ENGINES, "animal", {
         "question": "q",
-        "sources": [("clip_census", tmp_path / "missing.csv", build_page._census_verdict)],
+        "sources": [("clip_census", tmp_path / "missing.csv", build_page._census_flag_verdict("is_animal"))],
     })
     try:
         build_page.select_sample("animal", n=4)

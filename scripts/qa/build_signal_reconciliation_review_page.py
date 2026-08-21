@@ -61,10 +61,13 @@ MAX_WORKERS = 16
 SEED = 42
 
 
-def _census_verdict(row: dict) -> tuple[bool, float] | None:
-    if not row:
-        return None
-    return (str(row.get("is_animal", "")).strip() == "True", float(row.get("score") or 0))
+def _census_flag_verdict(field: str):
+    """CLIP census's is_animal/is_creature columns are the string 'True'/'False'."""
+    def _f(row: dict) -> tuple[bool, float] | None:
+        if not row:
+            return None
+        return (str(row.get(field, "")).strip() == "True", float(row.get("score") or 0))
+    return _f
 
 
 def _weapon_boxes_verdict(row: dict) -> tuple[bool, float] | None:
@@ -78,7 +81,21 @@ def _weapon_boxes_verdict(row: dict) -> tuple[bool, float] | None:
     return (n > 0, score)
 
 
-def _rek_flag_verdict(field: str):
+def _creature_boxes_verdict(row: dict) -> tuple[bool, float] | None:
+    if not row:
+        return None
+    try:
+        n = int(float(row.get("creature_n") or 0))
+    except ValueError:
+        return None
+    score = float(row.get("creature_top_score") or 0) if row.get("creature_top_score") else 0.0
+    return (n > 0, score)
+
+
+def _score_field_verdict(field: str):
+    """Generic 0-1 score column, thresholded at 0.5 -- used for both
+    Rekognition's rek_* flags and Nova's nova_* presence scores; the
+    threshold/shape is the same regardless of which vision system produced it."""
     def _f(row: dict) -> tuple[bool, float] | None:
         if not row or row.get(field) in (None, ""):
             return None
@@ -92,8 +109,9 @@ ENGINES = {
     "animal": {
         "question": "Does this poster show a real, non-human animal (not a costume/mask/silhouette implying one)?",
         "sources": [
-            ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_verdict),
-            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _rek_flag_verdict("rek_animal")),
+            ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_flag_verdict("is_animal")),
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_animal")),
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_animal")),
         ],
     },
     "weapon": {
@@ -107,7 +125,17 @@ ENGINES = {
             # (either detector fires) vs. box IoU actually differs.
             ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _weapon_boxes_verdict),
             ("dino", ROOT / "data" / "sample_output" / "creature_weapon_dino.csv", _weapon_boxes_verdict),
-            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _rek_flag_verdict("rek_weapon")),
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_weapon")),
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_weapon")),
+        ],
+    },
+    "monster": {
+        "question": "Does this poster show a real monster/supernatural creature (vampire, zombie, demon, giant creature, etc. -- not a masked human killer with no supernatural element)?",
+        "sources": [
+            ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_flag_verdict("is_creature")),
+            ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _creature_boxes_verdict),
+            ("dino", ROOT / "data" / "sample_output" / "creature_weapon_dino.csv", _creature_boxes_verdict),
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_monster")),
         ],
     },
 }
