@@ -298,6 +298,44 @@ agreement result: title lettering style is a lower-ambiguity call than
 (`agree_adjacent`) for being one bucket off, which is where most of the
 remaining 15/40 landed.
 
+### Reconciling `is_animal` with a second engine
+
+`06_clip_census.py`'s `is_animal` flag is CLIP's own read of whether a
+real, non-human animal appears on the poster. `26_rekognition_enrich.py`
+(AWS Rekognition `DetectLabels`, `rek_animal`) is meant to be a second,
+independent opinion on the same question -- but as of this writing,
+25 has never been run against real AWS access (credentials unavailable),
+so this can only score CLIP alone for now.
+
+Blind human review, 36 posters (`scripts/qa/build_signal_reconciliation_review_page.py --signal animal`,
+stratified toward CLIP's own agreed-positive/agreed-negative cases since
+no second engine's disagreements existed yet to stratify toward), 35
+scoreable (1 excluded as `no_seguro`):
+
+| engine | n | accuracy | precision | recall |
+|---|---:|---:|---:|---:|
+| CLIP census (`06`) | 35 | 80.0% | 0.0% | 0.0% |
+
+Accuracy is misleadingly high here -- 34 of the 35 reviewed posters are
+real negatives (no animal), so a classifier that mostly says "no" scores
+well on accuracy alone. What actually happened: CLIP missed the one real
+animal in the sample (*The Thin Man Goes Home*, id 14594, a dog on the
+poster CLIP scored `is_animal=False` at 0.582) and produced 6 false
+positives, 2 of which are a specific, nameable failure mode -- "The
+Dragon Murder Case" (id 51565) and "Lady Dragon 2" (id 80342) both flag
+`is_animal=True` despite showing no real animal, consistent with CLIP's
+embedding picking up "Dragon" from the title/poster text or theming
+rather than genuinely detecting animal content in the image.
+
+**Not yet a real finding about `is_animal`'s accuracy** -- n=35 with a
+single engine can't say whether CLIP is uniquely bad at this or whether
+any single engine would be; the whole point of this reconciliation
+exercise (see the README's "Reconciling overlapping signals") is
+comparing CLIP against Rekognition and scoring agreement, which needs
+`26_rekognition_enrich.py` to have a real run first. Flagged here as a
+real, live-verified data point, not a conclusion -- revisit once AWS
+access is available.
+
 ## SigLIP semantic embeddings
 
 Same 5-poster live check as CLIP above, against `data/master_dataset.csv`'s
@@ -673,3 +711,51 @@ in a bad crop), where weapon labels (`knife`, `gun`, `chainsaw`) describe
 concrete objects with much less room for a defensible "well, sort of"
 verdict -- consistent with `uncertain` being 5.6x rarer for weapons than
 creatures.
+
+### Reconciling `weapon_n` with a second engine: does agreement actually help?
+
+The 62.5%-false-positive finding above (Nova QA against OWLv2's own raw
+output) already established that OWLv2 alone isn't trustworthy. What
+hadn't been checked with real numbers on this repo's own corpus: does
+requiring OWLv2 *and* DINO to agree actually improve on either alone, the
+way the real project's own methodology assumes?
+
+Both detectors run fresh against the full 99-poster sample
+(`20_creature_weapon_owlv2.py`/`21_creature_weapon_dino.py`, no AWS
+needed -- these are local, open-vocabulary detectors), OWLv2 flagging
+28/99 posters `weapon_n > 0` and DINO 70/99 -- already a striking gap, no
+overlap check needed to see these two disagree a lot (46/99 posters are
+real OWLv2/DINO disagreements). Blind human review
+(`scripts/qa/build_signal_reconciliation_review_page.py --signal weapon`):
+the reviewed 58-poster sample was actually generated *before* DINO's run
+completed, so it's stratified on OWLv2 alone (28 agreed-positive/30
+agreed-negative per OWLv2, no disagreement-aware stratification) rather
+than the disagreement-first sampling the tool normally does once 2+
+engines have data -- of the 58 reviewed, only 15 happen to be real
+OWLv2/DINO disagreements, not a targeted majority. 55 scoreable of 58
+(3 `no_seguro`):
+
+| method | n | accuracy | precision | recall |
+|---|---:|---:|---:|---:|
+| OWLv2 alone | 55 | 65.5% | 34.6% | 81.8% |
+| DINO alone | 55 | 47.3% | 26.3% | 90.9% |
+| ANY (either flags) | 55 | 45.5% | 25.6% | 90.9% |
+| **ALL (both agree)** | 55 | **67.3%** | **36.0%** | 81.8% |
+
+Confirms the real project's methodology with real numbers on this repo's
+own corpus, not just a citation: **requiring both detectors to agree
+beats either alone on both accuracy and precision**, at the cost of
+identical recall to OWLv2 alone (some real weapons only DINO catches are
+lost when both must agree). ANY is worse than either engine individually
+-- summing two detectors' false positives instead of filtering them out.
+DINO alone is notably weaker than OWLv2 alone here (47.3% vs. 65.5%
+accuracy) -- it flags weapons on 70% of the corpus, high recall but at a
+real precision cost.
+
+**Still missing a third opinion**: Rekognition's `rek_weapon`
+(`26_rekognition_enrich.py`) hasn't been run against real AWS access yet
+(credentials unavailable as of this writing) -- once it has, re-run
+`scripts/qa/compare_signal_engines.py --signal weapon` against the same
+human review CSV to see whether a 3-engine agreement rule (e.g. 2-of-3)
+beats the 2-engine ALL rule above. Not assumed to help just because it's
+a third opinion -- scored the same way, once the data exists.

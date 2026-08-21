@@ -180,10 +180,18 @@ either. No Step Functions execution runs them automatically.
 The Python for 01-21 and 25 does not call AWS ML APIs — posters come from
 TMDB's public image CDN (optional `--posters-s3-bucket`). Production still
 *runs on* AWS (Fargate/Batch); that is orchestration, not Rekognition. The
-one non-CLIP/SigLIP model (`14`'s YuNet) is a small local ONNX file. Every
-download-capable script (everything except `06`-`09`, `12`-`13`, `15`,
-and `25`, which read `05`'s/`11`'s embedding cache, `14`'s face boxes,
-or 20+21's CSVs -- `16`-`21` all download fresh, same as `01`-`04`/`14`) shares one poster cache
+one non-CLIP/SigLIP model (`14`'s YuNet) is a small local ONNX file.
+`26_rekognition_enrich.py` is the one exception that does call an AWS ML
+API directly -- scene/object labels, image-quality properties, and face
+demographics via AWS Rekognition, the same real, already-run signal
+family as scripts 22-24's AWS dependency, just a metric rather than a QA
+tool. See its own docstring for what it deliberately drops (moderation --
+that's poster-corpus-validation's gate 15's job) and why; not yet
+live-verified (AWS credentials unavailable) or wired into
+`compute_metrics.asl.json`. Every download-capable script (everything
+except `06`-`09`, `12`-`13`, `15`, and `25`, which read `05`'s/`11`'s
+embedding cache, `14`'s face boxes, or 20+21's CSVs -- `16`-`21` and `26`
+all download fresh, same as `01`-`04`/`14`) shares one poster cache
 (`data/posters_cache/`, see `utils/posters.py`): whichever script runs
 first downloads a given poster, the others reuse that file. That cache
 can optionally check S3 first (`--posters-s3-bucket`, matching the real
@@ -225,6 +233,36 @@ collide. `face_expression.csv` is
 aggregated first since it's the one output with multiple rows per
 poster (one per detected face). Column names, units, and sentinels
 (before that prefix) are listed in docs/SCHEMA.md.
+
+## Reconciling overlapping signals
+
+Some questions now have more than one engine answering them: "is there an
+animal" (CLIP's `06_clip_census.py` zero-shot taxonomy vs. Rekognition's
+`26_rekognition_enrich.py` label flag), and "is there a weapon" (OWLv2 and
+DINO's own zero-shot detectors, now joined by Rekognition's flag too).
+This already happened once for creature/weapon detection specifically --
+OWLv2 alone measured 58-67% false positives, and agreement between OWLv2
+and DINO turned out to be the trustworthy signal, not either engine alone
+(see docs/RESULTS.md, "Creature/weapon detection"). Rather than assume
+that pattern generalizes, `scripts/qa/build_signal_reconciliation_review_page.py`
++ `scripts/qa/compare_signal_engines.py` re-run the same test for each new
+overlapping pair:
+
+```bash
+python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal
+# review data/qa/animal_reconciliation_review.html, export its CSV
+python3 scripts/qa/compare_signal_engines.py --signal animal --human data/qa/animal_reconciliation_human_review.csv
+```
+
+The review page is blind (no engine's verdict shown) and stratifies
+toward disagreement cases first, same reasoning as the sibling
+poster-corpus-validation repo's mega-prompt review. The comparison script
+scores every available engine, plus every any-agree/all-agree combination
+across 2+ engines, against the human labels -- and skips engines whose
+output file doesn't exist yet, so it's meant to be re-run as each engine's
+data lands (in particular once AWS access is available for
+`26_rekognition_enrich.py`), not run once with everything already in
+place.
 
 ## Structure
 
@@ -274,6 +312,9 @@ scripts/
                                   uncertain → none (Nova has no uncertain)
   24_typography_nova_qa.py       Nova Pro QA of 08's CLIP typography axis --
                                   needs AWS, not a pipeline stage
+  26_rekognition_enrich.py       AWS Rekognition labels/image-quality/face-demographics
+                                  -- needs AWS, a real per-poster metric (unlike 22-24),
+                                  not yet live-verified or wired into compute_metrics.asl.json
   utils/
     logging_setup.py, resumable.py   shared conventions with the sibling
                                       poster-corpus-validation repo
@@ -283,6 +324,18 @@ scripts/
     siglip_backbone.py               shared SigLIP model loading + text-prototype
                                       helper, used by 12/13
     device.py                        cuda > mps > cpu for 17/19/20/21
+  qa/
+    validate_genre_classifier_vs_imdb.py   scores 09 against IMDb's own genre tags
+    build_signal_reconciliation_review_page.py, compare_signal_engines.py
+                                            blind human review + scoring for signals
+                                            two or more engines both claim to answer
+                                            (animal, weapon) -- see "Reconciling
+                                            overlapping signals" below. For
+                                            creature/weapon specifically, prefer
+                                            25_creature_weapon_agreement.py's
+                                            IoU-based join -- this tool's
+                                            weapon_n>0 boolean check is a
+                                            coarser, complementary signal
 data/
   sample_input/    99 real posters, stratified by decade (1920s-2020s)
   sample_output/   real, already-computed metrics for those same posters
@@ -319,10 +372,12 @@ tests/                             `make test-fast` = pytest -m "not slow"
   test_posters.py                   cache hit never touches the network
   test_pyproject_extras.py          cpu / tf-saliency / bedrock extras
   test_readme_inventory.py          README Structure names every test_*.py
+  test_rekognition_enrich.py        26: _flag() label-presence scorer
   test_resumable.py                 flock, 0-byte header, no duplicate ids
   test_saliency_prediction.py       18: heatmap summary (slow: live MSI-Net)
   test_sample_output_contract.py    99-poster sample: one row per id, assemble
   test_schema_contract.py           sample headers match FIELDS / SCHEMA
+  test_signal_reconciliation.py     qa/: verdict extraction, agreement scoring
   test_siglip_backbone.py           SigLIP softmax/cosine math (synthetic)
   test_typography_nova_qa.py        24: bin_register / agree_adjacent
   test_validate_genre_classifier_vs_imdb.py  genre-vs-IMDb metrics (no CLIP)
