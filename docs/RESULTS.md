@@ -298,43 +298,313 @@ agreement result: title lettering style is a lower-ambiguity call than
 (`agree_adjacent`) for being one bucket off, which is where most of the
 remaining 15/40 landed.
 
-### Reconciling `is_animal` with a second engine
+### Reconciling `is_animal`, `weapon`, `monster`, and `person` across engines -- the real rule
 
-`06_clip_census.py`'s `is_animal` flag is CLIP's own read of whether a
-real, non-human animal appears on the poster. `26_rekognition_enrich.py`
-(AWS Rekognition `DetectLabels`, `rek_animal`) is meant to be a second,
-independent opinion on the same question -- but as of this writing,
-25 has never been run against real AWS access (credentials unavailable),
-so this can only score CLIP alone for now.
+Several questions this repo's engines can now each independently answer
+-- "is there a real animal," "is there a real weapon," "is there a real
+monster/supernatural creature," "is there a real person" -- got a real,
+blind human-reviewed answer for which engine(s) to actually trust, scored
+against the full 145,492-poster private corpus (not just this repo's
+99-poster sample; the private project had already run every relevant
+engine -- CLIP census, OWLv2, Grounding DINO, Rekognition `DetectLabels`,
+YOLOv8n (`19_pose_dynamism.py`'s own person count), and Nova's scene-enrich
+call -- across its full corpus, so this reuses that real, already-computed
+data rather than waiting on this repo's own `26_rekognition_enrich.py`/
+`27_nova_scene_enrich.py` to get AWS access). Same discipline as
+`25_creature_weapon_agreement.py`'s own justification: don't assume
+agreement helps, or that any given engine is trustworthy alone -- measure
+it, per question, against real human judgment.
 
-Blind human review, 36 posters (`scripts/qa/build_signal_reconciliation_review_page.py --signal animal`,
-stratified toward CLIP's own agreed-positive/agreed-negative cases since
-no second engine's disagreements existed yet to stratify toward), 35
-scoreable (1 excluded as `no_seguro`):
+**Corpus-wide positive rates first** (145,492 posters, ~131k with every
+engine present):
 
-| engine | n | accuracy | precision | recall |
+| question | CLIP census | OWLv2 | DINO | Rekognition | Nova |
+|---|---:|---:|---:|---:|---:|
+| animal | 2.8% | -- | -- | 19.1% | 3.1% |
+| weapon | -- | 32.7% | 63.4% | 16.4% | 12.4% |
+| monster | 18.6% | 55.2% | 96.8% | n/a | 14.3% |
+
+DINO flagging 96.8% of the *entire corpus* as containing a monster, and
+63.4% as containing a weapon, is the first real tell -- no real corpus is
+that saturated with monsters or weapons. Rekognition has no
+monster/creature field at all (its label taxonomy is general-purpose
+object/scene detection, not a supernatural-creature vocabulary), so it
+was never a candidate for that question.
+
+**Blind human review, 50 posters each** (`scripts/qa/build_signal_reconciliation_review_page.py`,
+stratified toward the specific pattern "exactly one engine says yes, every
+other available engine says no," plus a few agreed-positive/agreed-negative
+anchors for calibration):
+
+| question | engine | n | accuracy | precision | recall |
+|---|---|---:|---:|---:|---:|
+| animal | CLIP census | 50 | 90.0% | 80.0% | 50.0% |
+| animal | **Rekognition** | 50 | **26.0%** | **17.8%** | 100.0% |
+| animal | Nova | 50 | 90.0% | 80.0% | 50.0% |
+| weapon | OWLv2 | 50 | 100.0% | 100.0% | 100.0% |
+| weapon | **DINO** | 50 | **20.0%** | **11.1%** | 100.0% |
+| weapon | Rekognition | 50 | 100.0% | 100.0% | 100.0% |
+| weapon | Nova | 50 | 100.0% | 100.0% | 100.0% |
+| monster | CLIP census | 50 | 96.0% | 60.0% | 100.0% |
+| monster | OWLv2 | 50 | 96.0% | 60.0% | 100.0% |
+| monster | **DINO** | 50 | **16.0%** | **6.7%** | 100.0% |
+| monster | Nova | 50 | 96.0% | 60.0% | 100.0% |
+| person | Rekognition | 50 | 80.0% | 85.7% | 85.7% |
+| person | Nova | 50 | 76.0% | 82.9% | 82.9% |
+| person | **pose (YOLOv8n)** | 50 | **40.0%** | 100.0% | **14.3%** |
+
+The pattern repeats across animal/weapon/monster: the outlier engine has
+near-perfect *recall* (it rarely misses a real positive) because it says
+"yes" almost everywhere, and near-worthless *precision* as the direct
+consequence. Scored specifically on the disagreement subset each review
+was stratified toward (the one engine says yes, every other available
+engine says no):
+
+| question | outlier engine | n disputed | outlier was right |
+|---|---|---:|---:|
+| animal | Rekognition | 40 | 4/40 (10.0%) |
+| weapon | DINO | 40 | 0/40 (0.0%) |
+| monster | DINO | 40 | 0/40 (0.0%) |
+
+**Person is the mirror-image failure mode, not the same one**: pose's
+YOLOv8n person count has 100% precision (never wrong when it fires) but
+only 14.3% recall -- it's not noisy, it's blind. Of the 20 posters in the
+review where Rekognition and Nova both said yes and pose said no, 19/20
+(95%) were real people YOLOv8n simply never detected -- consistent with a
+detector tuned on photographic content missing illustrated/stylized
+poster art. This has a real downstream consequence for
+`19_pose_dynamism.py`: `pose_n_persons == 0` does not mean "no person in
+this poster" the way it might be read -- it usually means detection
+failed on a person who is there. The pose *dynamism* score itself (when
+YOLOv8n does fire) isn't shown unreliable by this review; what's
+unreliable is treating a zero as a negative rather than a missing value
+when computing coverage/denominators downstream.
+
+**The rule this repo adopted**: one deterministic model + Nova (the LLM)
++ this blind human review, not "more engines voting is safer." The
+specific engine that's unreliable is a per-question finding, not a fixed
+"always drop engine X" rule -- Rekognition failed animal but scored
+perfectly on weapon and person; DINO failed weapon and monster; pose
+failed person by omission, the opposite failure shape from DINO/
+Rekognition's over-triggering. Concretely:
+
+- **animal**: CLIP census (`06`) + Nova (`27`)
+- **weapon**: OWLv2 (`20`) + Nova (`27`) -- Rekognition also scored 100%
+  here but is dropped anyway: OWLv2 is a free local model that already has
+  to run for `25_creature_weapon_agreement.py`, so there's no cost reason
+  to also pay for a Rekognition call this specific question doesn't need
+- **monster**: OWLv2 (`20`) + Nova (`27`) -- same free/already-running
+  reasoning over CLIP census, which tied with OWLv2 exactly on this review
+- **person**: Rekognition (`26`) + Nova (`27`) -- `pose_n_persons`
+  (`19`) dropped from this vote specifically; still computed and used for
+  its own purpose (pose dynamism), just not trusted as a presence signal
+
+A real, specific example from the animal review: CLIP missed the one real
+animal in an earlier, smaller 35-poster pass of this same test (*The Thin
+Man Goes Home*, id 14594, a dog on the poster CLIP scored
+`is_animal=False` at 0.582) and produced 2 false positives on titles
+containing the word "Dragon" -- "The Dragon Murder Case" (id 51565) and
+"Lady Dragon 2" (id 80342) -- consistent with CLIP's embedding picking up
+the word from the title/poster text rather than genuinely detecting
+animal content in the image. Neither engine in the final animal/weapon/
+monster pairs above is assumed perfect going forward; each is trusted
+specifically because a real blind review said so, on this specific
+question, not by default.
+
+Caveat on sample size: n=50 per question (n=40 for each disputed subset)
+is real, live-verified evidence, not a definitive population statistic --
+the 100%/0% results for weapon and monster in particular are clean enough
+to act on (a single true positive would have changed 0% to 2.5%, not
+overturned the finding), but a larger confirmatory sample is a reasonable
+future step before treating these numbers as exact.
+
+### A fifth candidate engine tested and rejected: real segmentation data, still not good enough
+
+The private project separately ran real semantic/material/concept
+segmentation over 65,201 posters (`data/segmentation.csv` in the private
+repo, never ported here or merged into `master_dataset.csv`, but real,
+live-computed data, not a stub) -- SegFormer-b0 trained on ADE20K (14
+scene classes, % of image area per class, including `ade_animal`/
+`ade_water`), a SigLIP2-based MINC-Materials read (23 material classes,
+including `minc_water`), and 10 CLIP zero-shot concept scores including
+`clip_weapon` and `clip_water`. On paper this looked like a promising
+extra vote: corpus-wide, `ade_animal`/`clip_weapon` agreed with the
+already-trusted engines 83-92% of the time.
+
+That aggregate agreement rate was misleading -- the same lesson as
+DINO/Rekognition above, that the disagreement subset is where the real
+signal (and the real errors) concentrate, not the overall agreement
+percentage. Blind human review, 50 posters each, same method:
+
+| question | segmentation engine | n | accuracy | precision | recall |
+|---|---|---:|---:|---:|---:|
+| weapon | `clip_weapon` | 50 | **26.0%** | **26.7%** | 34.8% |
+| animal | `ade_animal` (>0.01 area) | 50 | **22.0%** | **20.0%** | 28.6% |
+
+Both catastrophically bad, and bad in *both* directions at once -- unlike
+DINO (all false positives, 0% right on its own disagreements) or pose
+(all false negatives, never wrong but rarely fires), the segmentation
+signals got nearly everything wrong on both sides of the disagreement:
+of the posters where segmentation alone said yes (OWLv2/Rekognition/Nova,
+or CLIP census/Nova, all said no), only 3/25 (weapon) and 1/25 (animal)
+were real; of the posters where segmentation alone said no while the
+already-trusted engines unanimously said yes, 15/15 (weapon) and 15/15
+(animal) -- 100% both times -- were real weapons/animals the segmentation
+read completely missed. **Not added to either rule.** Flagged here
+specifically because it's a real negative result on a data source that
+looked reasonable at a glance (real model, real corpus-scale run, plausible
+aggregate agreement) -- exactly the kind of assumption this repo's whole
+reconciliation discipline exists to catch before it ships, not just the
+positive results.
+
+### Water: a fifth signal, and a different kind of answer than animal/weapon/monster
+
+Water had four real candidates: `rek_water` (Rekognition), `ade_water`/
+`minc_water`/`clip_water` (three separate segmentation reads -- ADE20K
+scene area, MINC material, CLIP concept), and Nova's own read (parsed out
+of `nova_fear_labels`, since `27_nova_scene_enrich.py`'s prompt didn't
+have a standalone `water` field the way it has `weapon`/`monster`/
+`person`/`animal`). Corpus-wide (65,003 posters): Rekognition 3.7%
+positive, the three segmentation reads 9.9-11.3%, Nova 2.2% -- segmentation
+running noticeably hotter than the other two, same shape as the animal/
+weapon segmentation failures above.
+
+**Round 1** (50-poster blind review, disagreement-stratified): all three
+segmentation reads failed the same way segmentation failed on animal/
+weapon (7-11% precision on their own unique-positive subset, 100%
+false-negative on posters the trusted pair unanimously caught). But this
+round only had 4 real positives in the whole sample -- too few to trust
+Rekognition/Nova's own precision numbers (28.6%/26.7%), which looked
+mediocre.
+
+**Round 2** (100-poster review, re-sampled specifically from "Rekognition
+OR Nova says yes" for a properly powered read on those two specifically):
+
+| method | n | accuracy | precision | recall |
 |---|---:|---:|---:|---:|
-| CLIP census (`06`) | 35 | 80.0% | 0.0% | 0.0% |
+| Rekognition alone | 96 | 54.2% | 45.0% | 71.1% |
+| **Nova alone** | 96 | **83.3%** | **80.6%** | 76.3% |
+| either (OR) | 96 | 60.4% | 50.0% | 100.0% |
+| both (AND) | 96 | 77.1% | 90.0% | 47.4% |
 
-Accuracy is misleadingly high here -- 34 of the 35 reviewed posters are
-real negatives (no animal), so a classifier that mostly says "no" scores
-well on accuracy alone. What actually happened: CLIP missed the one real
-animal in the sample (*The Thin Man Goes Home*, id 14594, a dog on the
-poster CLIP scored `is_animal=False` at 0.582) and produced 6 false
-positives, 2 of which are a specific, nameable failure mode -- "The
-Dragon Murder Case" (id 51565) and "Lady Dragon 2" (id 80342) both flag
-`is_animal=True` despite showing no real animal, consistent with CLIP's
-embedding picking up "Dragon" from the title/poster text or theming
-rather than genuinely detecting animal content in the image.
+With a properly balanced sample (38 real positives, not 4), the picture
+flips: **Nova alone clearly beats Rekognition alone**, and beats both
+combination rules too -- OR keeps the recall but tanks precision (every
+one of Rekognition's extra false positives comes along for free), AND
+gets better precision than Nova alone but at real recall cost (misses
+half the real water). **Water doesn't fit this repo's "deterministic +
+Nova" pattern** -- there's no deterministic engine worth pairing Nova
+with here (segmentation is rejected above, Rekognition alone is worse
+than Nova alone). The rule: **Nova (`27`) alone**, no partner.
 
-**Not yet a real finding about `is_animal`'s accuracy** -- n=35 with a
-single engine can't say whether CLIP is uniquely bad at this or whether
-any single engine would be; the whole point of this reconciliation
-exercise (see the README's "Reconciling overlapping signals") is
-comparing CLIP against Rekognition and scoring agreement, which needs
-`26_rekognition_enrich.py` to have a real run first. Flagged here as a
-real, live-verified data point, not a conclusion -- revisit once AWS
-access is available.
+### Rekognition's overall cost-benefit ledger, once all five signals were tested
+
+With animal/weapon/monster/person/water all scored, `26_rekognition_enrich.py`'s
+`DetectLabels`+`DetectFaces` call earns its keep on some fields and not
+others -- worth listing plainly rather than leaving as a single "worth it
+or not" verdict, since the answer differs by field:
+
+**Kept, real reason:**
+- `rek_person` -- one of the 2 trusted engines for person (80.0% accuracy)
+- `rek_age_lo`/`rek_age_hi`/`rek_gender`/`rek_emotion` (face demographics)
+  -- no other engine in this repo computes this at all
+- `rek_bright` -- cross-validated against `01_color_metrics.py`'s
+  independent CIELAB brightness (Pearson 0.929, Spearman 0.948 across
+  129,072 posters, both free of human review since it's an objective
+  numeric check, not a subjective judgment)
+
+**Dropped, tested and beaten by a free alternative:**
+- `rek_animal`, `rek_weapon` -- see the reconciliation rule above
+- `rek_water` -- beaten by Nova alone (see above)
+- `rek_colors` -- compared against `color_palette` (CIELAB k-means, free)
+  across 129,072 posters: 87.6% land in the same general color tone
+  (RGB Euclidean distance < 100), luminance correlation 0.789. Decent but
+  not tight enough to justify the API cost when a free method already
+  agrees with it most of the time. A third, independently-implemented
+  classical algorithm (PIL's built-in median-cut quantization, 300-poster
+  sample, real fetch+compute, no model download) agrees with the free
+  CIELAB k-means method more often (66.3% of posters) than with
+  Rekognition (33.3%) -- two free, independent classical algorithms
+  converge on each other more than either converges on the paid API,
+  which is real evidence the free method is the more standard answer,
+  not that Rekognition is simply "different."
+- `rek_n_faces` -- compared against `faces_n_faces` (YuNet, local/free)
+  across 131,035 posters: 74.1% exact match, Pearson correlation 0.879.
+  Real disagreement concentrates on crowded/collage posters. A 20-poster
+  human recount of the most extreme disagreements found the *higher* of
+  the two numbers is usually (not always) closer to the truth -- both
+  engines tend to undercount on busy posters rather than invent faces,
+  with two clean, documented counter-examples: *Opus Sanguinis* (id
+  1719230, YuNet said 22, Rekognition said 6, real count is 1 -- both
+  fooled by numerous background skulls, a real, understandable failure
+  mode: skull anatomy pattern-matches "face" for both detectors) and
+  *Beringin* (id 455460, YuNet said 10, Rekognition correctly said 0 --
+  a real YuNet false-positive burst Rekognition avoided). `rek_n_faces`
+  doesn't independently justify the API call, but is free additional
+  signal once the call is already happening for other reasons (a
+  `max(faces_n_faces, rek_n_faces)` rule beats either alone on the
+  disagreement tail).
+
+**No competitor exists to test against at all:**
+- `rek_sharp`, `rek_contrast` -- confirmed via a full search of the
+  private project's ~144 scripts: nothing else in this pipeline computes
+  image sharpness or contrast as its own metric. Neither validated nor
+  contradicted; just genuinely unique.
+
+**Net**: if the only reason to call Rekognition were presence-detection
+signals (animal/weapon/monster/water) or color/face-count, it would not
+be worth the cost -- free alternatives beat or tie it on every one of
+those. The real, defensible reasons to keep calling it are `rek_person`,
+face demographics, and (weakly) brightness cross-validation -- everything
+else the same API call happens to also return is free bonus signal once
+that call is already justified, not an independent reason to make it.
+
+### Fire: a sixth signal, same shape as water
+
+Same overlap check that found the animal/weapon/monster/person/water
+candidates surfaced one more real (poster, name) match worth the same
+treatment: `rek_fire` (Rekognition) vs. `clip_fire` (segmentation) vs.
+Nova's own `fire` tag (parsed from `nova_fear_labels`, same pattern as
+water). Corpus-wide (65,003 posters) all three land in a tighter, more
+similar range than water did (4.7-6.6% positive, 92-94% pairwise
+agreement) -- a real difference from the lopsided rates that gave away
+animal/weapon/monster/water's bad actors before any human review was
+needed. That tighter aggregate agreement turned out to be the same
+misleading-aggregate trap segmentation already sprang twice, not evidence
+fire is an easier signal for all three -- the blind review below settled
+it.
+
+**50-poster blind review** (disagreement-stratified, real private corpus;
+13 real positives, 26.0%):
+
+| method | accuracy | precision | recall |
+|---|---:|---:|---:|
+| Rekognition alone | 58.0% | 27.8% | 38.5% |
+| clip_fire (segmentation) alone | 54.0% | 22.2% | 30.8% |
+| **Nova alone** | **78.0%** | **55.6%** | 76.9% |
+| either (OR) | 56.0% | 36.4% | 92.3% |
+| both (AND) | 80.0% | 100.0% | 23.1% |
+
+Segmentation's `clip_fire` fails the same way it failed on animal/weapon/
+water -- rejected on the same grounds. Rekognition alone is weak too
+(27.8% precision -- it flags plenty of red/orange lighting, explosions,
+and lava that aren't fire). AND reaches 100% precision but only 23.1%
+recall -- it misses 10 of the 13 real fires in the sample, so it's not
+usable as the sole rule even though every positive it does return is
+real. OR is worse than Nova alone on every axis except recall. **Fire
+doesn't fit this repo's "deterministic + Nova" pattern either** -- same
+conclusion as water, no deterministic engine survived to pair with Nova.
+The rule: **Nova (`27`) alone**, no partner.
+
+A specialized alternative was considered and rejected without importing:
+real fire/smoke-detection models exist publicly (e.g. YOLOv26/YOLOv10
+fire detection, SigLIP2-based Forest-Fire-Detection, ViT-Forest-Fire-
+Detection checkpoints on Hugging Face), but every one found is trained on
+real photographic wildfire/surveillance footage, not illustrated poster
+art -- the same domain mismatch that already broke YOLOv8n's
+person-detection recall on this corpus (14.3% recall, see above). Since
+Nova already beat every deterministic candidate that *was* tested here,
+there was no longer a gap left for a specialized model to fill.
 
 ## SigLIP semantic embeddings
 
@@ -752,10 +1022,10 @@ DINO alone is notably weaker than OWLv2 alone here (47.3% vs. 65.5%
 accuracy) -- it flags weapons on 70% of the corpus, high recall but at a
 real precision cost.
 
-**Still missing a third opinion**: Rekognition's `rek_weapon`
-(`26_rekognition_enrich.py`) hasn't been run against real AWS access yet
-(credentials unavailable as of this writing) -- once it has, re-run
-`scripts/qa/compare_signal_engines.py --signal weapon` against the same
-human review CSV to see whether a 3-engine agreement rule (e.g. 2-of-3)
-beats the 2-engine ALL rule above. Not assumed to help just because it's
-a third opinion -- scored the same way, once the data exists.
+**Closed with a third and fourth opinion**: Rekognition (`rek_weapon`)
+and Nova (`nova_weapon`) were both added to this test and scored against
+a fresh 50-poster blind review on the full private corpus -- see "CLIP
+semantic embeddings," "Reconciling `is_animal`, `weapon`, and `monster`
+across engines," above, for the final numbers and the rule this repo
+settled on (OWLv2 + Nova, DINO dropped entirely: 0/40 real weapons on its
+own disagreement subset).

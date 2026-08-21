@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import os
 import sys
 import time
@@ -64,8 +65,8 @@ FIELDS = [
     "id", "title", "year",
     "rek_labels", "rek_top", "rek_top_conf",
     "rek_weapon", "rek_animal", "rek_person", "rek_water", "rek_fire", "rek_silhouette",
-    "rek_n_boxes", "rek_bright", "rek_sharp", "rek_contrast", "rek_colors",
-    "rek_n_faces", "rek_emotion", "rek_gender", "rek_age_lo", "rek_age_hi",
+    "rek_n_boxes", "rek_label_boxes", "rek_bright", "rek_sharp", "rek_contrast", "rek_colors",
+    "rek_n_faces", "rek_emotion", "rek_gender", "rek_age_lo", "rek_age_hi", "rek_face_boxes",
     "error",
 ]
 
@@ -93,6 +94,15 @@ def _flag(labels: list[tuple[str, float]], vocab: set[str]) -> float:
     return round(best, 4)
 
 
+def _box_xywh(b: dict) -> list[float]:
+    """Rekognition's BoundingBox is already normalized 0-1 -- just renamed to the
+    [x, y, w, h] convention this repo's other box-producing scripts use
+    (20_creature_weapon_owlv2.py's weapon_boxes/creature_boxes, 14_face_detect.py's
+    face_boxes), so downstream code doesn't need a Rekognition-specific reader."""
+    return [round(float(b.get("Left", 0)), 4), round(float(b.get("Top", 0)), 4),
+            round(float(b.get("Width", 0)), 4), round(float(b.get("Height", 0)), 4)]
+
+
 def analyze(client, img_bytes: bytes) -> dict:
     lab = client.detect_labels(
         Image={"Bytes": img_bytes},
@@ -102,7 +112,17 @@ def analyze(client, img_bytes: bytes) -> dict:
         Settings={"ImageProperties": {"MaxDominantColors": 5}},
     )
     labels = [(l["Name"], float(l["Confidence"]) / 100.0) for l in lab.get("Labels", [])]
-    n_boxes = sum(len(l.get("Instances") or []) for l in lab.get("Labels", []))
+    # Instances is where the actual per-detection boxes live -- DetectLabels' own
+    # top-level Confidence is a whole-image score, not tied to any one box, so a
+    # label with N instances contributes N (label, score, box) entries here, not 1.
+    label_boxes = [
+        {"label": l["Name"], "score": round(float(inst.get("Confidence", l["Confidence"])) / 100.0, 4),
+         "box": _box_xywh(inst.get("BoundingBox") or {})}
+        for l in lab.get("Labels", [])
+        for inst in (l.get("Instances") or [])
+        if inst.get("BoundingBox")
+    ]
+    n_boxes = len(label_boxes)
     ip = lab.get("ImageProperties") or {}
     q = ip.get("Quality") or {}
     colors = ip.get("DominantColors") or []
@@ -114,6 +134,7 @@ def analyze(client, img_bytes: bytes) -> dict:
     details = faces.get("FaceDetails") or []
     emotion = gender = ""
     age_lo = age_hi = -1
+    face_boxes_s = ""
     if details:
         # largest face by bounding box area, same tiebreak as the real script
         details = sorted(details, key=lambda f: f["BoundingBox"]["Width"] * f["BoundingBox"]["Height"], reverse=True)
@@ -125,6 +146,9 @@ def analyze(client, img_bytes: bytes) -> dict:
         ar = f0.get("AgeRange") or {}
         age_lo = int(ar.get("Low", -1))
         age_hi = int(ar.get("High", -1))
+        # same "x,y,w,h" | "x,y,w,h" convention as 14_face_detect.py's face_boxes,
+        # largest first (same sort as above) -- so both scripts' boxes are directly comparable
+        face_boxes_s = "|".join(",".join(str(v) for v in _box_xywh(f["BoundingBox"])) for f in details)
 
     return {
         "rek_labels": label_s, "rek_top": top_n, "rek_top_conf": round(top_c, 4),
@@ -132,12 +156,13 @@ def analyze(client, img_bytes: bytes) -> dict:
         "rek_person": _flag(labels, PERSON), "rek_water": _flag(labels, WATER),
         "rek_fire": _flag(labels, FIRE), "rek_silhouette": _flag(labels, SILHOUETTE),
         "rek_n_boxes": int(n_boxes),
+        "rek_label_boxes": json.dumps(label_boxes, ensure_ascii=False) if label_boxes else "",
         "rek_bright": round(float(q.get("Brightness") or 0), 2),
         "rek_sharp": round(float(q.get("Sharpness") or 0), 2),
         "rek_contrast": round(float(q.get("Contrast") or 0), 2),
         "rek_colors": color_s,
         "rek_n_faces": len(details), "rek_emotion": emotion, "rek_gender": gender,
-        "rek_age_lo": age_lo, "rek_age_hi": age_hi,
+        "rek_age_lo": age_lo, "rek_age_hi": age_hi, "rek_face_boxes": face_boxes_s,
     }
 
 

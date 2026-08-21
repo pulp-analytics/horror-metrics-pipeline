@@ -236,48 +236,101 @@ poster (one per detected face). Column names, units, and sentinels
 
 ## Reconciling overlapping signals
 
-Some questions now have more than one engine answering them: "is there an
-animal" (CLIP's `06_clip_census.py`, Rekognition's `26_rekognition_enrich.py`,
-Nova's `27_nova_scene_enrich.py`), "is there a weapon" (OWLv2, DINO,
-Rekognition, Nova), and "is there a monster/supernatural creature" (CLIP,
-OWLv2, DINO, Nova). This already happened once for creature/weapon
-detection specifically -- OWLv2 alone measured 58-67% false positives,
-and agreement between OWLv2 and DINO turned out to be the trustworthy
-signal, not either engine alone (see docs/RESULTS.md, "Creature/weapon
-detection"). Rather than assume that pattern generalizes to every new
-overlapping pair, `scripts/qa/build_signal_reconciliation_review_page.py`
-+ `scripts/qa/compare_signal_engines.py` re-run the same test each time a
-new engine starts answering a question another one already does:
+Several questions have more than one engine answering them -- "is there
+an animal," "is there a weapon," "is there a monster/supernatural
+creature," "is there a person," "is there water," "is there fire."
+`scripts/qa/build_signal_reconciliation_review_page.py` +
+`compare_signal_engines.py` exist to test each one for real rather than
+assume more engines voting is automatically safer:
 
 ```bash
-python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal   # or weapon, monster
-# review data/qa/animal_reconciliation_review.html, export its CSV
+python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal   # or weapon, monster, person, water, fire
+# review the generated page, export its CSV
 python3 scripts/qa/compare_signal_engines.py --signal animal --human data/qa/animal_reconciliation_human_review.csv
 ```
 
-The review page is blind (no engine's verdict shown) and stratifies
-toward disagreement cases first, same reasoning as the sibling
-poster-corpus-validation repo's mega-prompt review -- disagreement can be
-large: a 3-engine dry run of `--signal monster` against this repo's
-99-poster sample (CLIP + OWLv2 + DINO, before Nova/Rekognition had any
-data) found 87/99 posters where the three don't all agree, underscoring
-how noisy this specific category already was known to be (see
-docs/RESULTS.md's Nova QA section on creature detections). The comparison
-script scores every available engine, plus every any-agree/all-agree
-combination across 2+ engines, against the human labels -- and skips
-engines whose output file doesn't exist yet, so it's meant to be re-run
-as each engine's data lands (in particular once AWS access is available
-for `26_rekognition_enrich.py`/`27_nova_scene_enrich.py`), not run once
-with everything already in place.
+**The rule this repo settled on, after real blind human review on the
+full private corpus (145,492 posters -- see docs/RESULTS.md, "Reconciling
+`is_animal`, `weapon`, `monster`, and `person` across engines" for the
+numbers): one deterministic model + Nova + human review, not "every
+available engine votes."** Concretely:
 
-`27_nova_scene_enrich.py`'s own docstring raises an open methodological
-question worth resolving with this same tool once it has real data:
-its `nova_weapon`/`nova_monster`/`nova_animal` fields are combined in one
-call with descriptive fields (mood, fear labels, a text description)
-rather than isolated the way title-text (gate 6) and moderation (gate 15)
-were after evidence showed combining hurt those specifically -- there's
-no equivalent evidence yet for these fields, and the reconciliation
-scores against human review are exactly what would surface it if true.
+- **animal**: CLIP census (`06`) + Nova (`27`) -- Rekognition (`26`)
+  scored 26.0% accuracy / 17.8% precision on a 50-poster review; of the
+  40 posters where Rekognition alone said yes, only 4 (10%) were real
+  animals.
+- **weapon**: OWLv2 (`20`) + Nova (`27`) -- DINO (`21`) scored 20.0%
+  accuracy / 11.1% precision; 0/40 of its own-disagreement posters were
+  real weapons. Rekognition also scored 100% here but is dropped anyway
+  (free local model already running for `25`, no cost reason to also
+  pay for a Rekognition call).
+- **monster**: OWLv2 (`20`) + Nova (`27`) -- same DINO failure (16.0%
+  accuracy, 0/40 on its own disagreement posters). Rekognition was never
+  a candidate -- it has no monster/creature field at all.
+- **person**: Rekognition (`26`) + Nova (`27`) -- `19_pose_dynamism.py`'s
+  own YOLOv8n person count scored 100% precision but only 14.3% recall:
+  never wrong when it fires, but of 20 posters where Rekognition+Nova
+  both said yes and pose said no, 19 (95%) were real people it simply
+  missed (illustrated poster art, not the photographic content it's
+  tuned for). `pose_n_persons` is still used for its own purpose (pose
+  dynamism), just not trusted as a presence vote.
+- **water**: Nova (`27`) alone -- no deterministic partner survived.
+  Rekognition alone scored 54.2% accuracy / 45.0% precision on a
+  properly-powered 100-poster review (38 real positives); Nova alone hit
+  83.3% / 80.6%. Segmentation's three water reads (`ade_water`/
+  `minc_water`/`clip_water`) were rejected the same way as animal/weapon
+  (7-11% precision on their own disagreements).
+- **fire**: Nova (`27`) alone -- same shape as water. On a 50-poster
+  review (13 real positives), Nova alone hit 78.0% accuracy / 55.6%
+  precision, ahead of Rekognition (58.0% / 27.8%) and segmentation's
+  `clip_fire` (54.0% / 22.2%). Public Hugging Face fire-detection models
+  were found and considered but not imported -- they're trained on real
+  photographic wildfire footage, a domain mismatch with illustrated
+  poster art, and Nova already beat every deterministic candidate that
+  was actually tested.
+
+The pattern that emerged: DINO and Rekognition are each unreliable for
+exactly one question (DINO for weapon and monster, Rekognition for
+animal) while being fine or excellent on the others -- *which* engine is
+the weak link is a real, per-question finding from blind human review,
+not something to guess or apply uniformly. Person adds a different
+failure shape entirely: pose isn't noisy like DINO/Rekognition, it's
+blind -- high precision, terrible recall, the opposite problem. Water and
+fire add a third shape: no engine failed outright, but no *deterministic*
+engine was good enough to earn a place next to Nova either -- both
+signals ended up as Nova alone, breaking the "one deterministic + Nova"
+default that held for the other four. This is exactly what the tool is
+for: re-run it for any new overlapping pair rather than assume the last
+question's answer generalizes.
+
+**A fifth candidate that looked promising and wasn't**: the private
+project separately ran real semantic/material/concept segmentation over
+65,201 posters (SegFormer-b0/ADE20K + a SigLIP2 material read + CLIP
+zero-shot concepts) -- corpus-wide it agreed with the already-trusted
+engines 83-92% of the time, which looked like a viable fourth vote for
+animal/weapon. Scored the same way, both failed badly (26.0%/22.0%
+accuracy) -- worse, they were wrong in *both* directions (false positives
+on the disagreement subset it uniquely flagged, and 100% false negatives
+on posters the already-trusted engines unanimously caught). Not added to
+either rule. See docs/RESULTS.md for the full numbers -- flagged
+specifically as a negative result worth documenting, since aggregate
+agreement rate turned out to be a bad predictor of trustworthiness here,
+the same lesson DINO/Rekognition already taught.
+
+Sample size caveat: each of these is n=50 (n=40 on the specific
+disagreement subset) -- real, live-verified evidence, but a larger
+confirmatory sample is a reasonable next step given how clean the 0%/100%
+results are, before treating them as exact population statistics.
+
+`27_nova_scene_enrich.py`'s own docstring raises a related, still-open
+methodological question: its `nova_weapon`/`nova_monster`/`nova_animal`
+fields are combined in one call with descriptive fields (mood, fear
+labels, a text description) rather than isolated the way title-text
+(gate 6) and moderation (gate 15) were after evidence showed combining
+hurt those specifically. The reconciliation results above are good news
+on this question, not proof it's resolved -- Nova scored well across all
+three signals as currently combined, but that's consistent with (not
+proof against) isolating it scoring even better.
 
 ## Structure
 

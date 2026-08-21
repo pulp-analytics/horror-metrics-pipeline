@@ -77,6 +77,31 @@ def test_score_field_verdict_works_for_nova_fields_too():
     assert f({"nova_animal": "0.9"}) == (True, 0.9)
 
 
+def test_nova_fear_label_verdict_parses_present_label():
+    f = build_page._nova_fear_label_verdict("water")
+    assert f({"nova_fear_labels": "water:0.8|fire:0.3"}) == (True, 0.8)
+
+
+def test_nova_fear_label_verdict_below_threshold_is_false():
+    f = build_page._nova_fear_label_verdict("fire")
+    assert f({"nova_fear_labels": "water:0.8|fire:0.3"}) == (False, 0.3)
+
+
+def test_nova_fear_label_verdict_missing_label_is_false_zero():
+    f = build_page._nova_fear_label_verdict("weapon")
+    assert f({"nova_fear_labels": "water:0.8|fire:0.3"}) == (False, 0.0)
+
+
+def test_nova_fear_label_verdict_missing_field_is_none():
+    f = build_page._nova_fear_label_verdict("water")
+    assert f({}) is None
+
+
+def test_nova_fear_label_verdict_empty_row_is_none():
+    f = build_page._nova_fear_label_verdict("water")
+    assert f(None) is None
+
+
 # ---- select_sample: disagreement/positive/negative categorization ----
 
 def test_select_sample_stratifies_disagreement_first(tmp_path, monkeypatch):

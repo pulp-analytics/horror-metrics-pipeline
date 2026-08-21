@@ -45,6 +45,7 @@ import base64
 import csv
 import json
 import random
+import re
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
@@ -104,38 +105,137 @@ def _score_field_verdict(field: str):
     return _f
 
 
+def _nova_fear_label_verdict(label: str):
+    """27_nova_scene_enrich.py has no standalone nova_water/nova_fire/etc. field --
+    those concepts only ever come back inside nova_fear_labels, a free-form
+    "label:conf|label:conf" string (up to 12 tags per poster, not a fixed
+    schema). Parses that string for one specific label's confidence instead."""
+    pattern = re.compile(rf"{re.escape(label)}:([\d.]+)")
+    def _f(row: dict) -> tuple[bool, float] | None:
+        if not row:
+            return None
+        text = row.get("nova_fear_labels")
+        if text is None:
+            return None
+        m = pattern.search(text)
+        score = float(m.group(1)) if m else 0.0
+        return (score >= 0.5, score)
+    return _f
+
+
 # signal -> question text + list of (engine name, csv path, id-keyed loader, verdict fn)
 ENGINES = {
     "animal": {
         "question": "Does this poster show a real, non-human animal (not a costume/mask/silhouette implying one)?",
         "sources": [
+            # rek_animal deliberately excluded -- live-verified against 50 real, blind
+            # human-reviewed posters from the full private corpus (not just this repo's
+            # 99-sample): rekognition scored 26.0% accuracy / 17.8% precision / 100% recall
+            # (it flags almost everything). On the specific "rekognition says yes, clip+nova
+            # say no" disagreement subset (n=40), only 4/40 (10%) were real animals -- 90%
+            # false positives. clip_census and nova scored identically well (90% accuracy /
+            # 80% precision / 50% recall, same tp/fp/fn/tn), so the trustworthy signal here
+            # is "clip OR nova," not "any of 3." Rekognition is still worth calling for its
+            # other fields (image quality, general labels, demographics) -- this exclusion
+            # is about the animal vote specifically, not the API call.
             ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_flag_verdict("is_animal")),
-            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_animal")),
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_animal")),
         ],
     },
     "weapon": {
         "question": "Does this poster show a real weapon (not a hand/silhouette that merely implies one)?",
         "sources": [
-            # For box-level agreement (IoU-based), prefer
-            # scripts/25_creature_weapon_agreement.py's join instead -- that's the
-            # stricter, citable signal (see docs/RESULTS.md, "Creature/weapon
-            # detection"). This tool's weapon_n>0 boolean is a coarser, complementary
-            # presence-only check, useful for calibrating how much a looser rule
-            # (either detector fires) vs. box IoU actually differs.
+            # Deterministic + LLM + human, the rule this repo settled on after live
+            # human review on the real private corpus (not just this repo's 99-sample):
+            # OWLv2 scored 100% accuracy/precision/recall on a 50-poster blind review
+            # (5 real weapons, 45 real negatives). DINO scored 20.0% accuracy / 11.1%
+            # precision on the same review -- of the 40 posters where DINO alone said
+            # yes (OWLv2/Rekognition/Nova all said no), 0/40 (0%) were real weapons.
+            # Rekognition also scored 100% on that review but is dropped here anyway:
+            # OWLv2 is free (local model, no AWS cost) and already has to run for
+            # 25_creature_weapon_agreement.py, so there's no cost reason to also pay
+            # for Rekognition's vote on a question OWLv2 already answers as well.
+            # For box-level agreement (IoU-based, an even stricter signal), prefer
+            # scripts/25_creature_weapon_agreement.py's join instead -- see
+            # docs/RESULTS.md, "Creature/weapon detection."
             ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _weapon_boxes_verdict),
-            ("dino", ROOT / "data" / "sample_output" / "creature_weapon_dino.csv", _weapon_boxes_verdict),
-            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_weapon")),
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_weapon")),
         ],
     },
     "monster": {
         "question": "Does this poster show a real monster/supernatural creature (vampire, zombie, demon, giant creature, etc. -- not a masked human killer with no supernatural element)?",
         "sources": [
-            ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_flag_verdict("is_creature")),
+            # Same rule as weapon, same reasoning: live human review on the real
+            # private corpus found CLIP census, OWLv2, and Nova tied exactly (96.0%
+            # accuracy / 60.0% precision / 100% recall, identical tp/fp/fn/tn) on a
+            # 50-poster blind review, while DINO scored 16.0% accuracy / 6.7%
+            # precision -- of the 40 posters where DINO alone said yes, 0/40 (0%)
+            # were real monsters. OWLv2 kept over CLIP census for the same free/
+            # already-running reason as weapon (Rekognition has no monster/creature
+            # field at all -- its label taxonomy is general-purpose, not supernatural
+            # -- so it was never a candidate here).
             ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _creature_boxes_verdict),
-            ("dino", ROOT / "data" / "sample_output" / "creature_weapon_dino.csv", _creature_boxes_verdict),
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_monster")),
+        ],
+    },
+    "person": {
+        "question": "Does this poster show a real, recognizable human figure (illustrated or photographic -- not a silhouette or symbolic mark that merely implies one)?",
+        "sources": [
+            # The one signal in this repo's reconciliation set where the excluded
+            # engine fails on RECALL, not precision -- opposite of every other signal
+            # above. Live human review on the real private corpus (50-poster blind
+            # review, 35 real positives/15 real negatives): Rekognition 80.0% accuracy
+            # / 85.7% precision / 85.7% recall, Nova 76.0% / 82.9% / 82.9% -- both
+            # solid. 19_pose_dynamism.py's own YOLOv8n person count scored 40.0%
+            # accuracy, 100% precision but only 14.3% recall: when it says yes it's
+            # never wrong, but it misses 30/35 real people in this sample -- of the 20
+            # posters where Rekognition+Nova both said yes and pose said no, 19/20
+            # (95%) were real people YOLOv8n simply didn't detect (illustrated/
+            # stylized poster art, not the photographic content it's tuned for).
+            # pose_n_persons is still useful for its own purpose (feeding ViTPose's
+            # skeleton/dynamism measurement when it does fire) -- just not trustworthy
+            # as a presence vote here. See docs/RESULTS.md for the numbers.
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_person")),
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_person")),
+        ],
+    },
+    "water": {
+        "question": "Does this poster show real water (ocean, lake, river, visible rain -- not a shiny surface that merely implies one)?",
+        "sources": [
+            # The only signal in this set with just ONE trusted source, no partner.
+            # Round 1 (n=50, only 4 real positives -- too few to trust) suggested
+            # Rekognition and Nova were both mediocre; round 2 (n=100, properly
+            # powered: 38 real positives) corrected that -- Nova alone: 83.3%
+            # accuracy / 80.6% precision / 76.3% recall, clearly ahead of
+            # Rekognition alone (54.2% / 45.0% / 71.1%), OR (60.4% / 50.0% / 100%,
+            # every Rekognition false positive included for free), and AND (77.1% /
+            # 90.0% / 47.4%, better precision but loses half the real water).
+            # Segmentation's three water reads (ade_water/minc_water/clip_water)
+            # were all rejected the same way as animal/weapon (7-11% precision on
+            # their own disagreements). No deterministic engine survived to pair
+            # with Nova here -- see docs/RESULTS.md, "Water: a fifth signal."
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _nova_fear_label_verdict("water")),
+        ],
+    },
+    "fire": {
+        "question": "Does this poster show real fire or flame (not just orange/red lighting that merely implies heat)?",
+        "sources": [
+            # Same shape as water: one trusted source, no deterministic partner.
+            # 50-poster blind review on the real private corpus (13 real positives,
+            # 26.0%): Nova alone 78.0% accuracy / 55.6% precision / 76.9% recall,
+            # clearly ahead of Rekognition alone (58.0% / 27.8% / 38.5%) and
+            # segmentation's clip_fire (54.0% / 22.2% / 30.8% -- rejected the same
+            # way as animal/weapon/water). AND (rek & nova) reaches 100% precision
+            # but only 23.1% recall -- misses 10/13 real fires, not usable alone.
+            # OR is worse than Nova alone on every axis except recall. A Hugging
+            # Face search for dedicated fire-detection models (YOLOv26/YOLOv10
+            # fire detection, SigLIP2 Forest-Fire-Detection, ViT-Forest-Fire-
+            # Detection) turned up real candidates, but they're trained on
+            # photographic wildfire imagery, not illustrated poster art -- the same
+            # domain-mismatch risk that sank YOLOv8n for person -- so none were
+            # imported without a test, and Nova already beat the deterministic
+            # candidates that were actually tested. See docs/RESULTS.md, "Fire."
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _nova_fear_label_verdict("fire")),
         ],
     },
 }

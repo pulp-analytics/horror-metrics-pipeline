@@ -5,6 +5,19 @@ reads -- the remaining fields from the real project's combined
 `nova_poster_enrich.py` call that this port hasn't isolated into their own
 gate yet.
 
+`face_count` (PENDING -- not in the real project's original prompt, added
+here and not yet live-verified): a third opinion on how many real human
+faces are on a poster, next to `faces_n_faces` (YuNet, local/free) and
+`rek_n_faces` (Rekognition, `26_rekognition_enrich.py`). Added after a
+real finding on 21 high-disagreement posters (blind human review, see
+docs/RESULTS.md): YuNet and Rekognition often disagree sharply on crowded/
+collage posters, and the *higher* of the two is usually (not always) the
+one closer to a real human count -- both engines tend to undercount, not
+invent faces. Whether Nova adds real value here (a third read, or the
+tiebreaker when YuNet/Rekognition disagree) is an open question this
+field exists to answer once this script has a real AWS run -- scored the
+same way as everything else in this repo, not assumed.
+
 Two fields from that same real prompt are deliberately NOT here, because
 they already have a better home:
 - `title_text` -> poster-corpus-validation's gate 6 (`06_bedrock_ocr.py`)
@@ -80,19 +93,25 @@ SCENE_PROMPT = """You analyze a movie poster image. Return ONLY valid JSON (no m
   "monster": 0.0,
   "person": 0.0,
   "animal": 0.0,
+  "face_count": 0,
   "description": "1-2 sentence neutral visual description for search/embeddings"
 }
 
 Rules:
 - fear_labels: up to 12 visual concepts useful for horror analysis (weapon, knife, gun, monster, creature, ghost, skull, blood, fire, water, silhouette, face, crowd, house, forest, vehicle, text-heavy, etc.). conf in 0..1.
 - weapon/monster/person/animal: likelihood 0..1 that the poster artwork genuinely shows that subject, from the image itself.
+- face_count: integer count of distinct real human faces visible (count each repeated
+  instance in a pattern/collage separately; do not count skulls, monster faces, or
+  faces implied only by a silhouette -- see docs/RESULTS.md's face-count reconciliation
+  for the exact convention this follows, ported from a real blind human review).
 - Keep description factual and concise (<= 45 words). No spoilers beyond what the poster shows.
 """
 
 FIELDS = [
     "id", "title", "year",
     "nova_credits_text", "nova_other_text", "nova_mood", "nova_fear_labels",
-    "nova_weapon", "nova_monster", "nova_person", "nova_animal", "nova_description",
+    "nova_weapon", "nova_monster", "nova_person", "nova_animal", "nova_face_count",
+    "nova_description",
     "error",
 ]
 
@@ -136,6 +155,23 @@ def _score(val, default: float = 0.0) -> float:
     return round(max(0.0, min(1.0, x)), 4)
 
 
+def _face_count(val, default: int = 0) -> int:
+    """New field (not in the real project's original prompt) -- added
+    specifically to compare against faces_n_faces (YuNet, local) and
+    rek_n_faces (Rekognition DetectFaces) once this script has a real run.
+    See docs/RESULTS.md's face-count reconciliation for why: on 21 real
+    high-disagreement posters where YuNet and Rekognition differ sharply,
+    the higher of the two is usually (though not always -- 2 real
+    counter-examples found) closer to a human's actual count, suggesting
+    both undercount on crowded/collage posters rather than either
+    over-counting -- Nova's own read is untested and worth adding."""
+    try:
+        x = int(float(val))
+    except (TypeError, ValueError):
+        return default
+    return max(0, x)
+
+
 def call_nova(bedrock, img_bytes: bytes, model_id: str) -> dict:
     result = bedrock.converse(
         modelId=model_id,
@@ -162,6 +198,7 @@ def call_nova(bedrock, img_bytes: bytes, model_id: str) -> dict:
         "nova_monster": _score(data.get("monster")),
         "nova_person": _score(data.get("person")),
         "nova_animal": _score(data.get("animal")),
+        "nova_face_count": _face_count(data.get("face_count")),
         "nova_description": str(data.get("description") or "").replace("\n", " ").strip()[:400],
     }
 

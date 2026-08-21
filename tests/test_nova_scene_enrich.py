@@ -14,6 +14,7 @@ _spec.loader.exec_module(mod)
 _join_list = mod._join_list
 _fear_labels = mod._fear_labels
 _score = mod._score
+_face_count = mod._face_count
 
 
 def test_join_list_basic():
@@ -69,3 +70,20 @@ def test_score_defaults_on_bad_input():
 
 def test_score_rounds_to_4_decimals():
     assert _score(0.123456) == 0.1235
+
+
+def test_face_count_valid_int():
+    assert _face_count(5) == 5
+
+
+def test_face_count_valid_float_string():
+    assert _face_count("3.0") == 3
+
+
+def test_face_count_negative_clamped_to_zero():
+    assert _face_count(-2) == 0
+
+
+def test_face_count_bad_input_defaults_to_zero():
+    assert _face_count(None) == 0
+    assert _face_count("not-a-number") == 0
