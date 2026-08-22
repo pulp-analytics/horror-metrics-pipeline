@@ -363,6 +363,19 @@ The table above is left as originally measured (not edited in place) so
 the correction itself stays visible as a documented event, not a silently
 rewritten history.
 
+**Correction, animal and weapon rows too**: both had the same underpowered
+problem -- animal's round 1 (8 real positives) was stratified toward
+Rekognition's own disagreement pattern, not CLIP/Nova's, so its "90%/80%/
+50%" CLIP/Nova numbers came from a handful of anchor cases, not a real
+test; weapon's round 1 had only 5 real positives. Properly powered round
+2s (36 and 56 real positives respectively) overturned both: CLIP census
+scored 20.0% precision on real illustrated/anime posters (confidently
+predicting "bird"/"snake" where there's no animal at all), and OWLv2
+scored 63.9% precision on weapon with only 13% of its unique-disagreement
+positives real -- both much closer to their era's "noisy" engines than to
+Nova. Rekognition, dropped from both rows above, turned out strong on
+both. See "Animal: a correction" and "Weapon: a correction" below.
+
 The pattern repeats across animal/weapon/monster: the outlier engine has
 near-perfect *recall* (it rarely misses a real positive) because it says
 "yes" almost everywhere, and near-worthless *precision* as the direct
@@ -398,11 +411,13 @@ perfectly on weapon and person; DINO failed weapon and monster; pose
 failed person by omission, the opposite failure shape from DINO/
 Rekognition's over-triggering. Concretely:
 
-- **animal**: CLIP census (`06`) + Nova (`27`)
-- **weapon**: OWLv2 (`20`) + Nova (`27`) -- Rekognition also scored 100%
-  here but is dropped anyway: OWLv2 is a free local model that already has
-  to run for `25_creature_weapon_agreement.py`, so there's no cost reason
-  to also pay for a Rekognition call this specific question doesn't need
+- **animal**: ~~CLIP census (`06`) + Nova (`27`)~~ **corrected to
+  Rekognition (`26`) + Nova (`27`)** -- the round-1 CLIP numbers were a
+  sample-size artifact; see "Animal: a correction" below
+- **weapon**: ~~OWLv2 (`20`) + Nova (`27`)~~ **corrected to Rekognition
+  (`26`) + Nova (`27`)** -- OWLv2 was never actually as good as round 1
+  suggested, and the cost argument for dropping Rekognition doesn't hold
+  once that's known; see "Weapon: a correction" below
 - **monster**: ~~OWLv2 (`20`) + Nova (`27`)~~ **corrected to Nova (`27`)
   alone** -- the tie shown above was a round-1, 3-real-positive artifact;
   see "Monster: a correction" below
@@ -561,6 +576,97 @@ roughly 60% in horror/scifi, roughly 32% in thriller/mystery. Anything
 downstream that treats `nova_monster >= 0.5` as equally trustworthy across
 all four genres is over-trusting it specifically on thriller and mystery
 posters.
+
+### Animal: a correction
+
+The animal row above -- CLIP census and Nova tied at 90.0% accuracy /
+80.0% precision / 50.0% recall, Rekognition rejected at 26.0% / 17.8% /
+100% -- rested on a round 1 with only **8 real animals** in a 50-poster
+sample. Worse than thin: that sample was stratified toward *Rekognition's*
+disagreement pattern specifically ("Rekognition says yes, CLIP+Nova say
+no"), not toward CLIP/Nova's own behavior -- meaning CLIP and Nova's
+reported 90%/80%/50% numbers came from whatever handful of anchor/
+agreement cases happened to be in that sample, never a real test of CLIP
+or Nova against a population that actually matters for the animal
+question.
+
+**Round 2** (97 scored after dropping "not sure," resampled from "CLIP OR
+Nova says yes" -- the rule that was actually in production -- for a real
+test of that population; 36 real positives):
+
+| method | accuracy | precision | recall |
+|---|---:|---:|---:|
+| CLIP census alone | 41.2% | 20.0% | 19.4% |
+| Rekognition alone | 78.4% | 65.3% | 88.9% |
+| **Nova alone** | 81.4% | 68.0% | 94.4% |
+| CLIP OR Nova *(old rule)* | 57.7% | 46.8% | 100.0% |
+| **Rekognition AND Nova** | **85.6%** | **78.9%** | 83.3% |
+
+CLIP census isn't just weak here, it's confidently wrong in a specific,
+checkable way: on illustrated/anime posters, it predicts "bird" or "snake"
+with 0.5-0.7 confidence and no conflict flag on posters that have no
+animal in them at all -- e.g. id 1274262 (*Space Battleship Yamato
+2199*, a sci-fi anime spaceship poster) scored "bird." This is the same
+domain-mismatch shape as YOLOv8n's failure on person (a detector doing
+fine on the content it was tuned for, badly on stylized/illustrated
+art) -- just showing up as false positives here instead of false
+negatives. Rekognition, dropped in the original rule, turns out to be the
+second-best single engine. **The corrected rule: Rekognition (`26`) +
+Nova (`27`)**, not CLIP census -- back to a "one deterministic + Nova"
+shape, just a different deterministic engine than originally published.
+
+### Weapon: a correction
+
+The weapon row above -- OWLv2/Rekognition/Nova all at 100.0% -- rested on
+a round 1 with only **5 real weapons** in the sample, the thinnest
+positive count of any signal in this document at the time (monster's 3
+came later and was worse, but weapon was already thin). A clean 100% on
+5 true positives and 45 true negatives isn't wrong, exactly, but it's not
+enough evidence to trust the *precision* difference between engines that
+all happened to score perfectly on such a small draw.
+
+**Round 2** (97 scored after dropping "not sure," 50 from the high-
+confidence "OWLv2 AND Nova agree" pool, 25 a dedicated "OWLv2 alone says
+yes" slice, 15 "Nova alone," 10 negative anchors -- 56 real positives,
+well powered):
+
+| method | accuracy | precision | recall |
+|---|---:|---:|---:|
+| OWLv2 alone | 62.9% | 63.9% | 82.1% |
+| DINO alone | 67.0% | 64.3% | 96.4% |
+| Rekognition alone | 82.5% | 88.2% | 80.4% |
+| Nova alone | 85.6% | 82.8% | 94.6% |
+| OWLv2 AND Nova *(old rule)* | 80.4% | 87.8% | 76.8% |
+| **Rekognition OR Nova** | **86.6%** | 82.1% | **98.2%** |
+
+Of 23 posters in this round where OWLv2 alone said yes (Nova said no),
+only 3 (13%) were real weapons -- the same "OWLv2 behaves like a second
+noisy engine on its own unique-disagreement cases" finding that also
+showed up for monster (8% there). DINO, previously rejected outright,
+actually scores closer to usable here (67.0%/64.3%/96.4%) than round 1's
+"20.0% accuracy" suggested -- still not good enough to adopt, but a
+reminder that DINO's *monster*-specific rejection doesn't automatically
+transfer to weapon at full strength either. **The corrected rule:
+Rekognition (`26`) + Nova (`27`)**, not OWLv2 -- the original cost
+argument for dropping Rekognition ("OWLv2 is free and already running, no
+reason to also pay for Rekognition") assumed OWLv2 was Rekognition's
+equal on accuracy; it isn't.
+
+**A separate, still-open question this correction surfaces: presence vs.
+localization.** All the numbers above (here and in every other signal in
+this document) answer "is there a weapon/animal/monster," a yes/no
+question. They say nothing about whether a given engine's *bounding box*
+correctly locates that weapon in the image -- a different, still-untested
+axis. Nova cannot help with this at all (a text/JSON-out LLM has no
+mechanism for reliable pixel localization, the same structural gap
+documented for `rek_n_boxes` in `27_nova_scene_enrich.py`'s docstring).
+If the downstream need is marking or cropping the weapon's actual
+location, not just flagging its presence, the candidates are
+`rek_label_boxes` (`26_rekognition_enrich.py`) or OWLv2's own boxes
+(`weapon_owlv2_top_label`/`_top_score` and the full box list in
+`creature_weapon_owlv2.csv`) -- and which of those localizes *correctly*,
+given a real weapon is present, is a real, separate reconciliation
+question this document hasn't answered yet.
 
 ### Water: another signal with no deterministic partner
 

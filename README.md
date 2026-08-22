@@ -255,15 +255,37 @@ full private corpus (145,492 posters -- see docs/RESULTS.md, "Reconciling
 numbers): one deterministic model + Nova + human review, not "every
 available engine votes."** Concretely:
 
-- **animal**: CLIP census (`06`) + Nova (`27`) -- Rekognition (`26`)
-  scored 26.0% accuracy / 17.8% precision on a 50-poster review; of the
-  40 posters where Rekognition alone said yes, only 4 (10%) were real
-  animals.
-- **weapon**: OWLv2 (`20`) + Nova (`27`) -- DINO (`21`) scored 20.0%
-  accuracy / 11.1% precision; 0/40 of its own-disagreement posters were
-  real weapons. Rekognition also scored 100% here but is dropped anyway
-  (free local model already running for `25`, no cost reason to also
-  pay for a Rekognition call).
+- **animal**: **Rekognition (`26`) + Nova (`27`)** -- corrected after a
+  round 2 review. The original rule was CLIP census (`06`) + Nova, tied
+  at 90.0%/80.0%/50.0% on a 50-poster round 1 that had only 8 real
+  animals and was stratified toward *Rekognition's* disagreement pattern,
+  not CLIP/Nova's -- meaning the CLIP/Nova numbers were never really
+  tested. A properly powered round 2 (97 posters, 36 real positives)
+  found CLIP census alone at 41.2%/20.0%/19.4% -- it confidently predicts
+  "bird"/"snake" on illustrated/anime posters with no animal at all (id
+  1274262, a sci-fi anime spaceship poster, scored "bird" at 0.54
+  confidence). Rekognition alone: 78.4%/65.3%/88.9%. Nova alone:
+  81.4%/68.0%/94.4%. Best: Rekognition AND Nova, 85.6%/78.9%/83.3%. See
+  docs/RESULTS.md, "Animal: a correction."
+- **weapon**: **Rekognition (`26`) + Nova (`27`)** -- corrected after a
+  round 2 review. The original rule was OWLv2 (`20`) + Nova (100% on a
+  round 1 with only 5 real weapons -- the thinnest sample in this
+  document at the time). A properly powered round 2 (97 posters, 56 real
+  positives) found OWLv2 alone at only 62.9%/63.9%/82.1%, and of 23
+  posters where OWLv2 alone said yes, only 3 (13%) were real weapons --
+  the same "OWLv2 is a second noisy engine on its own disagreements"
+  pattern monster's correction already found. Rekognition alone:
+  82.5%/88.2%/80.4%. Nova alone: 85.6%/82.8%/94.6%. Best: Rekognition OR
+  Nova, 86.6%/82.1%/98.2% -- beats the old OWLv2+Nova rule
+  (80.4%/87.8%/76.8%) on both accuracy and recall. DINO (`21`), rejected
+  outright before, actually scores 67.0%/64.3%/96.4% here -- still not
+  good enough to adopt, but closer to usable than the original "20.0%
+  accuracy" implied. See docs/RESULTS.md, "Weapon: a correction." **Note
+  on coordinates**: none of this tests box *localization* -- if you need
+  where the weapon is, not just whether one exists, Nova can't help
+  (text/JSON-out LLM, no pixel localization); use `rek_label_boxes` or
+  OWLv2's boxes, and treat their localization *quality* as still
+  unvalidated.
 - **monster**: **Nova (`27`) alone** -- corrected after a round 2 review.
   The original rule here was OWLv2 (`20`) + Nova, tied with CLIP census on
   a 50-poster round 1 that turned out to have only 3 real monsters in it
@@ -317,28 +339,36 @@ available engine votes."** Concretely:
   rule in the set; every other signal above resolved to a single engine,
   an OR, or Nova alone.
 
-The pattern that emerged: DINO and Rekognition are each unreliable for
-exactly one question (DINO for weapon and monster, Rekognition for
-animal) while being fine or excellent on the others -- *which* engine is
-the weak link is a real, per-question finding from blind human review,
-not something to guess or apply uniformly. Person adds a different
-failure shape entirely: pose isn't noisy like DINO/Rekognition, it's
-blind -- high precision, terrible recall, the opposite problem. Water,
-fire, and monster add a third shape: no engine failed outright, but no
+The pattern that emerged: DINO is unreliable for weapon and monster, CLIP
+census is unreliable for animal, OWLv2 is unreliable for weapon --
+*which* engine is the weak link is a real, per-question finding from
+blind human review, not something to guess or apply uniformly, and not
+even stable within a single engine across signals (OWLv2 is fine for
+monster's box data but not trusted as its own weapon vote). Person adds a
+different failure shape entirely: pose isn't noisy like DINO, it's blind
+-- high precision, terrible recall, the opposite problem. Water, fire,
+and monster add a third shape: no engine failed outright, but no
 *deterministic* engine was good enough to earn a place next to Nova
-either -- all three ended up as Nova alone, breaking the "one
-deterministic + Nova" default that held for animal, weapon, and person.
-Monster only joined this group after a correction -- round 1 (3 real
-positives, too few to trust) showed a tie that a properly powered round 2
-overturned, the same underpowered-sample trap water and silhouette's
-round 1 already fell into. Silhouette adds a fourth shape: Nova itself is
-the noisy one there (100% recall, 35.4% precision) -- the first signal
-where trusting Nova alone would be the mistake, and the first where the
-resolved rule is a genuine AND (both engines must agree) instead of a
-single trusted source. This is exactly what the tool is for: re-run it
-for any new overlapping pair rather than assume the last question's
-answer generalizes -- and re-run it again with a bigger sample if the
-first round's positive count looks thin, the way monster's did.
+either -- all three ended up as Nova alone. Silhouette adds a fourth
+shape: Nova itself is the noisy one there (100% recall, 35.4% precision)
+-- the first signal where trusting Nova alone would be the mistake, and
+the first where the resolved rule is a genuine AND (both engines must
+agree) instead of a single trusted source.
+
+**Three of this document's five original signals (animal, weapon,
+monster) turned out to be wrong on their first published rule**, all for
+the same root cause: round 1 samples with too few real positives (8, 5,
+and 3 respectively) to trust. Properly powered round 2s reversed all
+three -- and in animal and weapon's case, reversed the *specific engine*
+the rule trusted: Rekognition, dropped from both original rules (for
+accuracy in animal's case, for cost in weapon's), came back as the
+correct deterministic partner in both. Only person (35 real positives in
+round 1) and fire (13) were powered enough the first time to not need a
+second look. This is exactly what the tool is for: re-run it for any new
+overlapping pair rather than assume the last question's answer
+generalizes -- and re-run it again with a bigger sample if the first
+round's positive count looks thin, the way animal/weapon/monster's all
+did.
 
 **A fifth candidate that looked promising and wasn't**: the private
 project separately ran real semantic/material/concept segmentation over

@@ -128,37 +128,57 @@ ENGINES = {
     "animal": {
         "question": "Does this poster show a real, non-human animal (not a costume/mask/silhouette implying one)?",
         "sources": [
-            # rek_animal deliberately excluded -- live-verified against 50 real, blind
-            # human-reviewed posters from the full private corpus (not just this repo's
-            # 99-sample): rekognition scored 26.0% accuracy / 17.8% precision / 100% recall
-            # (it flags almost everything). On the specific "rekognition says yes, clip+nova
-            # say no" disagreement subset (n=40), only 4/40 (10%) were real animals -- 90%
-            # false positives. clip_census and nova scored identically well (90% accuracy /
-            # 80% precision / 50% recall, same tp/fp/fn/tn), so the trustworthy signal here
-            # is "clip OR nova," not "any of 3." Rekognition is still worth calling for its
-            # other fields (image quality, general labels, demographics) -- this exclusion
-            # is about the animal vote specifically, not the API call.
-            ("clip_census", ROOT / "data" / "sample_output" / "census.csv", _census_flag_verdict("is_animal")),
+            # CORRECTED after a round 2 review -- this used to read "clip_census + nova,
+            # rek_animal excluded," based on a 50-poster round 1 with only 8 real
+            # animals in the whole sample, stratified toward Rekognition's own
+            # disagreement pattern (not CLIP/Nova's), which meant CLIP and Nova's
+            # "90%/80%/50%" numbers came from a handful of anchor cases embedded in a
+            # sample built to test something else -- never a real test of CLIP/Nova on
+            # a population that matters. A properly powered round 2 (n=97, resampled
+            # from "clip OR nova says yes," 36 real positives) overturned it: CLIP
+            # census alone scored 41.2% accuracy / 20.0% precision / 19.4% recall --
+            # confidently wrong on illustrated/anime posters specifically (predicts
+            # "bird"/"snake" with 0.5-0.7 confidence, no conflict flag, on posters with
+            # no animal at all -- e.g. id 1274262, a sci-fi anime spaceship poster
+            # scored "bird"). Rekognition, previously excluded, turned out strong:
+            # 78.4% / 65.3% / 88.9% alone. Nova alone: 81.4% / 68.0% / 94.4%. Best
+            # combo: Rekognition AND Nova, 85.6% / 78.9% / 83.3% -- better than any
+            # single engine or the old clip_census+nova pair. The rule: **Rekognition
+            # (`26`) + Nova (`27`)**, not CLIP census. See docs/RESULTS.md, "Animal: a
+            # correction."
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_animal")),
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_animal")),
         ],
     },
     "weapon": {
         "question": "Does this poster show a real weapon (not a hand/silhouette that merely implies one)?",
         "sources": [
-            # Deterministic + LLM + human, the rule this repo settled on after live
-            # human review on the real private corpus (not just this repo's 99-sample):
-            # OWLv2 scored 100% accuracy/precision/recall on a 50-poster blind review
-            # (5 real weapons, 45 real negatives). DINO scored 20.0% accuracy / 11.1%
-            # precision on the same review -- of the 40 posters where DINO alone said
-            # yes (OWLv2/Rekognition/Nova all said no), 0/40 (0%) were real weapons.
-            # Rekognition also scored 100% on that review but is dropped here anyway:
-            # OWLv2 is free (local model, no AWS cost) and already has to run for
-            # 25_creature_weapon_agreement.py, so there's no cost reason to also pay
-            # for Rekognition's vote on a question OWLv2 already answers as well.
-            # For box-level agreement (IoU-based, an even stricter signal), prefer
-            # scripts/25_creature_weapon_agreement.py's join instead -- see
-            # docs/RESULTS.md, "Creature/weapon detection."
-            ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _weapon_boxes_verdict),
+            # CORRECTED after a round 2 review -- this used to read "OWLv2 + Nova,
+            # Rekognition dropped for cost reasons (not accuracy -- it also scored
+            # 100% in round 1)," based on a 50-poster round 1 with only 5 real
+            # weapons, the same underpowered-sample trap animal/monster/water/
+            # silhouette round 1 all fell into. A properly powered round 2 (n=97, 56
+            # real positives -- well powered) overturned it: OWLv2 alone scored only
+            # 62.9% accuracy / 63.9% precision / 82.1% recall, and of 23 posters where
+            # OWLv2 alone said yes (Nova said no), only 3 (13%) were real weapons --
+            # the same "OWLv2 behaves like a second noisy engine" finding monster's
+            # correction already surfaced. DINO: 67.0% / 64.3% / 96.4% -- still not
+            # great, but closer to usable than round 1's "20% accuracy" suggested.
+            # Rekognition alone: 82.5% / 88.2% / 80.4%. Nova alone: 85.6% / 82.8% /
+            # 94.6%. Best combo: Rekognition OR Nova, 86.6% / 82.1% / 98.2% -- better
+            # than OWLv2+Nova (80.4% / 87.8% / 76.8%) on both accuracy and recall.
+            # The rule: **Rekognition (`26`) + Nova (`27`)**, not OWLv2 -- the cost
+            # argument that dropped Rekognition here no longer holds once OWLv2's own
+            # accuracy is this much worse than assumed. NOTE: if you need actual box
+            # coordinates (to mark the weapon's location on the image, not just
+            # answer yes/no), Nova cannot help -- it's a text/JSON-out LLM, not a
+            # localizer (same structural gap as `rek_n_boxes`, see
+            # `27_nova_scene_enrich.py`'s docstring). Use `rek_label_boxes`
+            # (`26_rekognition_enrich.py`) or OWLv2's boxes for that, and note that
+            # box *localization* quality given a true positive has never been tested
+            # here -- only presence/absence has. See docs/RESULTS.md, "Weapon: a
+            # correction."
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_weapon")),
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_weapon")),
         ],
     },
