@@ -353,6 +353,16 @@ anchors for calibration):
 | person | Nova | 50 | 76.0% | 82.9% | 82.9% |
 | person | **pose (YOLOv8n)** | 50 | **40.0%** | 100.0% | **14.3%** |
 
+**Correction, monster row**: this table's monster numbers came from a
+50-poster sample with only 3 real monsters in it -- too few to trust, the
+same problem water and silhouette's round 1 hit later. A properly powered
+round 2 overturned the CLIP/OWLv2/Nova tie shown above: CLIP census and
+OWLv2 both turned out to perform close to DINO, not close to Nova. See
+"Monster: a correction" below for the real numbers and the corrected rule.
+The table above is left as originally measured (not edited in place) so
+the correction itself stays visible as a documented event, not a silently
+rewritten history.
+
 The pattern repeats across animal/weapon/monster: the outlier engine has
 near-perfect *recall* (it rarely misses a real positive) because it says
 "yes" almost everywhere, and near-worthless *precision* as the direct
@@ -393,8 +403,9 @@ Rekognition's over-triggering. Concretely:
   here but is dropped anyway: OWLv2 is a free local model that already has
   to run for `25_creature_weapon_agreement.py`, so there's no cost reason
   to also pay for a Rekognition call this specific question doesn't need
-- **monster**: OWLv2 (`20`) + Nova (`27`) -- same free/already-running
-  reasoning over CLIP census, which tied with OWLv2 exactly on this review
+- **monster**: ~~OWLv2 (`20`) + Nova (`27`)~~ **corrected to Nova (`27`)
+  alone** -- the tie shown above was a round-1, 3-real-positive artifact;
+  see "Monster: a correction" below
 - **person**: Rekognition (`26`) + Nova (`27`) -- `pose_n_persons`
   (`19`) dropped from this vote specifically; still computed and used for
   its own purpose (pose dynamism), just not trusted as a presence signal
@@ -457,7 +468,101 @@ aggregate agreement) -- exactly the kind of assumption this repo's whole
 reconciliation discipline exists to catch before it ships, not just the
 positive results.
 
-### Water: a fifth signal, and a different kind of answer than animal/weapon/monster
+### Monster: a correction
+
+The monster row in the table above -- CLIP census, OWLv2, and Nova tied
+exactly at 96.0% accuracy / 60.0% precision / 100% recall -- turned out to
+rest on only **3 real monsters** in the entire 50-poster sample. That's
+thinner than water's round 1 (4 real positives) and silhouette's round 1
+(2), both of which got caught and fixed the same way this one now is.
+Corpus-wide, the numbers already looked suspicious in hindsight: OWLv2
+fires on 55.3% of the full corpus, vs. CLIP census's 18.5% and Nova's
+14.3% -- much closer to DINO's 96.8% over-triggering shape than to the two
+engines it was supposedly tied with.
+
+**Round 2** (100-poster review: 50 from "2+ of {clip, owlv2, nova} agree,"
+25 from a dedicated "OWLv2 alone says yes" slice built specifically to test
+this suspicion, 10 clip-only, 10 nova-only, 5 negative anchors -- 28 real
+positives, properly powered):
+
+| method | accuracy | precision | recall |
+|---|---:|---:|---:|
+| CLIP census alone | 46.0% | 22.9% | 39.3% |
+| OWLv2 alone | 41.0% | 26.9% | 64.3% |
+| DINO alone (unchanged from round 1) | 30.0% | 28.6% | 100.0% |
+| **Nova alone** | **80.0%** | **60.0%** | 85.7% |
+| OWLv2 AND Nova | 82.0% | 72.7% | 57.1% |
+
+Of the 25 posters in this round where OWLv2 alone said yes (CLIP and Nova
+both said no), only **2 (8%)** were real monsters -- OWLv2 behaves like a
+second noisy engine here, not the trustworthy partner round 1 suggested.
+CLIP census performs almost as poorly. Nova alone is clearly the best
+single engine, well ahead of either deterministic candidate. OWLv2 AND
+Nova reaches higher precision (72.7%) but at real recall cost -- it misses
+12 of 28 real monsters (57.1% recall) -- the same trade this repo already
+rejected for water's and fire's AND combinations, for the same reason:
+losing that much recall isn't worth the precision gain when Nova alone
+already clears 80% accuracy on its own.
+
+**The corrected rule: Nova (`27`) alone**, no partner -- monster joins
+water and fire as a "no deterministic engine earns a seat next to Nova"
+signal, not weapon's "one deterministic model + Nova." This is the second
+time this document has had to walk back a round-1 conclusion after a
+properly powered round 2 (water was the first) -- worth naming plainly:
+**a 50-poster review with fewer than ~10 real positives in either class
+should be treated as provisional, not final**, until a bigger, resampled
+round confirms it. Weapon (5 real positives) and animal (8) are the
+remaining reviews in this document thin enough to warrant the same
+scrutiny; person (35) is not.
+
+**A caveat round 2 itself couldn't see: genre.** Round 2's 100 posters
+skewed 52% horror / 23% scifi vs. the corpus's real 43.2% / 12.5% -- and
+thriller (14% of the sample vs. 25.5% of the corpus) and mystery (8% vs.
+7.4%) were both underrepresented relative to how much of the corpus they
+actually are. That mattered here specifically because real monsters are
+genuinely much rarer in thriller/mystery by genre convention (psychological
+thrillers and detective mysteries don't usually have supernatural
+creatures) -- round 2's own per-genre breakdown showed a 38.5% real-monster
+rate in horror, 26.1% in scifi, but only 7.1% in thriller and **0%** in
+mystery (on just 8 posters, too few to trust on their own). Since round
+2's overall 60.0% Nova precision was averaged across a sample tilted
+toward the genres where monsters are common, it risked overstating how
+well "Nova alone" holds up specifically where they aren't.
+
+**Round 3** (95 posters, sampled only from thriller/mystery genres --
+`siglip_genre_true_genre` -- specifically to test this: 50 from Nova's own
+positives in that genre pair, the direct precision test; 25 from "OWLv2
+says yes, Nova says no" to check whether Nova is missing real monsters
+there; 10 CLIP-only; 10 negative anchors; 92 scored after dropping "not
+sure," 15 real positives):
+
+| engine | accuracy | precision | recall |
+|---|---:|---:|---:|
+| CLIP census | 71.7% | 23.8% | 33.3% |
+| OWLv2 | 40.2% | 21.4% | 100.0% |
+| **Nova** | 65.2% | **31.9%** | **100.0%** |
+
+The direct test confirms the concern: of the 47 thriller/mystery posters
+where Nova itself said "monster," only 15 (31.9%) actually were one --
+well below the 60.0% precision round 2 measured on a horror/scifi-heavy
+sample. But two things hold up: Nova still beats both deterministic
+engines here too (CLIP 23.8%, OWLv2 21.4% -- neither is a fix), and Nova's
+*recall* stays perfect (100%; of the 25 posters where OWLv2 alone flagged
+something and Nova didn't, zero were real monsters Nova missed). This
+looks like a base-rate effect, not a genre-specific Nova bug: when the
+true prevalence of a concept is very low, any imperfect classifier's
+precision degrades mechanically, because false positives make up a larger
+share of everything it flags. No engine tested here escapes that; Nova is
+just the least bad of the three.
+
+**The rule stays Nova (`27`) alone** -- nothing tested beats it in this
+genre pair either -- but **its real-world precision is genre-dependent**:
+roughly 60% in horror/scifi, roughly 32% in thriller/mystery. Anything
+downstream that treats `nova_monster >= 0.5` as equally trustworthy across
+all four genres is over-trusting it specifically on thriller and mystery
+posters.
+
+### Water: another signal with no deterministic partner
 
 Water had four real candidates: `rek_water` (Rekognition), `ade_water`/
 `minc_water`/`clip_water` (three separate segmentation reads -- ADE20K
@@ -550,14 +655,73 @@ or not" verdict, since the answer differs by field:
   private project's ~144 scripts: nothing else in this pipeline computes
   image sharpness or contrast as its own metric. Neither validated nor
   contradicted; just genuinely unique.
+- `rek_n_boxes` (count of localized object *instances* from `DetectLabels`'
+  `Instances` field) -- and this one stays that way structurally, not for
+  lack of trying: a vision-language model prompted for JSON text output
+  can't do per-object pixel localization the way a real detector does.
+  `27_nova_scene_enrich.py`'s docstring documents this explicitly so it
+  doesn't get re-proposed later.
+
+**Already reconciled, but in the sibling `poster-corpus-validation` repo,
+not here:** `rek_gore`/`rek_violence`/`rek_mod_weapons`/`rek_nudity`/
+`rek_suggestive` (Rekognition `DetectModerationLabels`) already have real
+Nova counterparts (`nova_blood_gore`, `nova_violence`, `nova_sexual_content`)
+in that repo's gate 15 -- live-verified with real AWS calls (672 posters,
+0 errors, 2026-08-16) and blind human review (85.5%/87.9% Nova precision
+on blood_gore/violence). Nothing to port here; check that repo's
+`docs/RESULTS.md` ("Gate 15: content moderation") before re-deriving any
+of this.
+
+**Not real detections at all:** `rek_title`/`rek_year` look like
+Rekognition output columns but aren't -- `build_master_dataset.py`
+auto-prefixes every non-`id` column from `rekognition_enrich.py`'s CSV
+with `rek_`, including its pass-through `title`/`year` metadata columns
+(the same convention `27_nova_scene_enrich.py`'s own `FIELDS` list uses).
+No detection happened; nothing to reconcile.
+
+**Dropped, rejected on its own merits (didn't need a Nova comparison to
+lose):** `rek_labels`/`rek_top`/`rek_top_conf` -- Rekognition's general
+open-vocabulary object/scene labels (`DetectLabels`' single highest-
+confidence pick per poster). Corpus-wide, the two most common `rek_top`
+values are **"Book" (26.1%, 34,414 posters) and "Advertisement" (30.9%,
+40,697 posters)** -- together 57% of the entire corpus, for a corpus of
+movie posters. `rek_top_conf` is useless for filtering: median 0.9998,
+essentially saturated. A 60-poster verification review (not blind --
+shown Rekognition's actual claimed label, asked "is this an accurate
+description of something visible here" -- the same style as
+`qa_title_ocr.py`'s existing QA pass, since a general label *list* isn't
+a yes/no presence question the usual blind format can score): **"Book"
+0/20 (0%), "Advertisement" 0/20 (0%), everything else 9/20 (45%) --
+15.0% overall, roughly 19% weighted by real corpus share.** Rekognition's
+general-purpose label model appears to be reading movie posters as a
+*document type* (rectangular, text-heavy image → "Book"/"Advertisement")
+rather than describing their actual illustrated content. This is worse
+than DINO's rejected weapon/monster precision (11.1%/6.7%) and rejected
+on the same terms DINO was: bad enough on its own that no comparison
+engine is needed to justify dropping it. `27_nova_scene_enrich.py`'s new
+`nova_labels`/`nova_top_label`/`nova_top_label_conf` fields (added before
+this review ran, to test rek_labels against) are still pending an AWS
+run, but that original motivating question is already answered --
+they're now just Nova's own independent general-label read, not a
+head-to-head rek_labels needs to win.
+
+Separately: the same "is this even a poster" ground truth mentioned above
+(`poster-corpus-validation`'s `poster_type_human_labels.csv`) covers
+1,904 of this corpus's 4,915 `no_title_on_poster` ids already --
+`27_nova_scene_enrich.py`'s `poster_qa_verdict`/`poster_qa_reason` fields
+(see that script's docstring) only need to cover the other 3,011 plus the
+rest of the corpus, not re-answer what's already answered.
 
 **Net**: if the only reason to call Rekognition were presence-detection
 signals (animal/weapon/monster/water) or color/face-count, it would not
 be worth the cost -- free alternatives beat or tie it on every one of
-those. The real, defensible reasons to keep calling it are `rek_person`,
-face demographics, and (weakly) brightness cross-validation -- everything
-else the same API call happens to also return is free bonus signal once
-that call is already justified, not an independent reason to make it.
+those, and its general-purpose `rek_labels`/`rek_top` read is actively
+wrong most of the time it matters (15.0% precision, 0% on 57% of the
+corpus). The real, defensible reasons to keep calling it are
+`rek_person`, face demographics, and (weakly) brightness cross-validation
+-- everything else the same API call happens to also return is free
+bonus signal once that call is already justified, not an independent
+reason to make it.
 
 ### Fire: a sixth signal, same shape as water
 
@@ -605,6 +769,54 @@ art -- the same domain mismatch that already broke YOLOv8n's
 person-detection recall on this corpus (14.3% recall, see above). Since
 Nova already beat every deterministic candidate that *was* tested here,
 there was no longer a gap left for a specialized model to fill.
+
+### Silhouette: the one signal where Nova is the noisy engine, not the anchor
+
+`rek_silhouette` (Rekognition) vs. `clip_shadow` (segmentation) vs. Nova's own
+`silhouette` tag (parsed from `nova_fear_labels`, same pattern as water/fire)
+flips the pattern every other signal in this document follows. Corpus-wide
+(65,003 posters): Rekognition 9.6% positive, `clip_shadow` 14.5%, **Nova
+30.8%** -- Nova is the one firing far more often than the other two here, not
+the trustworthy anchor.
+
+**Round 1** (50-poster blind review, disagreement-stratified, same method as
+every signal above): only 2 real positives in the whole sample -- even worse
+underpowered than water's round 1 (4 positives). But it was informative on
+its own: with all three engines individually firing on 36% of the sample (18
+of 50, by stratification design), only 4% (2/50) turned out to be a real
+silhouette under the strict definition ("backlit outline, no interior detail
+visible" -- not just a dim or shadowy figure whose features are still
+visible). The single poster where all three engines agreed was a real
+silhouette; almost nothing in the three single-engine-disagreement pools was.
+That gap -- 36% trigger rate vs. 4% real rate -- is what round 2 was built to
+explain: is silhouette just a much rarer concept than any engine's threshold
+suggests, or is the disagreement-only sampling strategy itself the problem
+here (missing the cases where 2 of 3 engines already agree)?
+
+**Round 2** (100-poster review, resampled from "2 or more of the 3 engines
+agree" -- 7,457 posters in that pool, vs. round 1's disagreement-only
+sampling; 96 scored after dropping "not sure," 28 real positives):
+
+| method | accuracy | precision | recall |
+|---|---:|---:|---:|
+| Rekognition alone | 71.9% | 51.0% | 89.3% |
+| clip_shadow (segmentation) alone | 33.3% | 20.0% | 42.9% |
+| Nova alone | 46.9% | 35.4% | **100.0%** |
+| **Rekognition AND Nova** | **79.2%** | **59.5%** | 89.3% |
+
+`clip_shadow` is rejected the same way segmentation was rejected for animal/
+weapon/water/fire. Nova alone never misses a real silhouette (100% recall)
+but fires on plenty of ordinary dim or moody lighting that isn't one (35.4%
+precision) -- the opposite failure shape from every other signal, where Nova
+was the precise one and something else over-triggered. Rekognition alone is
+better balanced (51.0% precision, 89.3% recall) but still wrong nearly half
+the time it says yes. Requiring **both** to agree -- Rekognition AND Nova,
+not "pick one deterministic + trust Nova alone" -- gives the best result of
+any single engine or combination: Nova's recall covers what Rekognition
+misses, Rekognition's higher precision filters out most of what Nova
+over-fires on. **The rule: `rek_silhouette` (`26`) AND Nova's `silhouette`
+tag (`27`)**, both required -- the only AND rule in this document; every
+other signal above resolved to a single trusted engine, an OR, or Nova alone.
 
 ## SigLIP semantic embeddings
 

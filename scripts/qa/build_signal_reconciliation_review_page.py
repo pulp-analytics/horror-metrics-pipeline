@@ -165,16 +165,39 @@ ENGINES = {
     "monster": {
         "question": "Does this poster show a real monster/supernatural creature (vampire, zombie, demon, giant creature, etc. -- not a masked human killer with no supernatural element)?",
         "sources": [
-            # Same rule as weapon, same reasoning: live human review on the real
-            # private corpus found CLIP census, OWLv2, and Nova tied exactly (96.0%
-            # accuracy / 60.0% precision / 100% recall, identical tp/fp/fn/tn) on a
-            # 50-poster blind review, while DINO scored 16.0% accuracy / 6.7%
-            # precision -- of the 40 posters where DINO alone said yes, 0/40 (0%)
-            # were real monsters. OWLv2 kept over CLIP census for the same free/
-            # already-running reason as weapon (Rekognition has no monster/creature
-            # field at all -- its label taxonomy is general-purpose, not supernatural
-            # -- so it was never a candidate here).
-            ("owlv2", ROOT / "data" / "sample_output" / "creature_weapon_owlv2.csv", _creature_boxes_verdict),
+            # CORRECTED after a round 2 review -- this used to read "OWLv2 + Nova,
+            # tied with CLIP census at 96.0%/60.0%/100%," but that came from a
+            # 50-poster round 1 with only 3 real monsters in the whole sample, far
+            # too few to trust (compare water/silhouette round 1, both caught and
+            # fixed the same way). A properly powered round 2 (n=100, resampled
+            # from "2+ of {clip, owlv2, nova} agree" plus a dedicated owlv2-only
+            # slice, 28 real positives) overturned it: CLIP census (46.0% acc /
+            # 22.9% prec / 39.3% rec) and OWLv2 (41.0% / 26.9% / 64.3%) both
+            # perform close to DINO (30.0% / 28.6% / 100% -- still the worst, still
+            # rejected), not close to Nova. Of 25 posters in round 2 where OWLv2
+            # alone said yes and clip+nova both said no, only 2 (8%) were real
+            # monsters -- OWLv2 turned out to be a second noisy engine, not a
+            # trustworthy partner. Nova alone: 80.0% acc / 60.0% prec / 85.7% rec,
+            # clearly the best single engine. OWLv2 AND Nova reaches higher
+            # precision (72.7%) but at real recall cost (57.1%, misses 12/28 real
+            # monsters) -- the same trade this repo already rejected for water and
+            # fire's AND combos. The rule: **Nova (`27`) alone**, no partner --
+            # same shape as water/fire, not weapon's "deterministic + Nova".
+            #
+            # CAVEAT round 2 couldn't see (it skewed 52% horror/23% scifi vs. the
+            # corpus's real 43.2%/12.5%, underrepresenting thriller/mystery): real
+            # monsters are much rarer in thriller/mystery by genre convention. A
+            # round 3 sampled only from those two genres (95 posters, 50 from
+            # Nova's own positives there) found Nova's real precision drops to
+            # 31.9% in thriller/mystery (vs. 60.0% overall) -- but CLIP (23.8%) and
+            # OWLv2 (21.4%) are both worse there too, and Nova's recall stays 100%.
+            # Reads as a base-rate effect (any imperfect classifier's precision
+            # degrades when true prevalence is very low), not a fixable
+            # genre-specific bug -- nothing tested beats Nova even restricted to
+            # this genre pair, so the rule doesn't change. But treat
+            # `nova_monster >= 0.5` as noticeably less trustworthy specifically on
+            # thriller/mystery posters than on horror/scifi ones. See
+            # docs/RESULTS.md, "Monster: a correction."
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _score_field_verdict("nova_monster")),
         ],
     },
@@ -236,6 +259,36 @@ ENGINES = {
             # imported without a test, and Nova already beat the deterministic
             # candidates that were actually tested. See docs/RESULTS.md, "Fire."
             ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _nova_fear_label_verdict("fire")),
+        ],
+    },
+    "silhouette": {
+        "question": "Does this poster show a backlit/rim-lit figure with no interior detail visible (a solid, flat, recognizable outline of a person or creature) -- not just a dim or shadowy figure whose features are still visible?",
+        "sources": [
+            # The one signal in this set where NOVA is the noisy one, not the
+            # anchor -- the opposite of every signal above. Corpus-wide (65,003
+            # posters) Nova already stood out as over-eager: 30.8% positive vs.
+            # Rekognition's 9.6% and segmentation's clip_shadow at 14.5%. A
+            # disagreement-stratified round 1 (n=50) confirmed it but only found
+            # 2 real positives -- too few to score (this concept turned out much
+            # rarer under the strict human definition than any engine's trigger
+            # rate suggested: the 1 case where all three engines agreed was real,
+            # almost nothing in the single-engine-disagreement pool was). Round 2
+            # (n=96 after dropping "not sure", resampled from "2-of-3 engines
+            # agree" for real power: 28 real positives) scored each engine and
+            # combination:
+            #   Rekognition alone:  71.9% acc / 51.0% prec / 89.3% rec
+            #   clip_shadow alone:  33.3% acc / 20.0% prec / 42.9% rec
+            #   Nova alone:         46.9% acc / 35.4% prec / 100.0% rec (never
+            #     misses a real one, but over-fires on ordinary dim lighting)
+            #   Rekognition AND Nova (both must agree): 79.2% acc / 59.5% prec /
+            #     89.3% rec -- the best of any single engine or combination,
+            #     Nova's perfect recall paired with Rekognition's precision.
+            # clip_shadow is rejected the same way segmentation was rejected
+            # everywhere else. Unlike every other signal in this set, the rule
+            # here is a genuine AND, not "pick one deterministic + trust Nova
+            # alone" -- see docs/RESULTS.md, "Silhouette."
+            ("rekognition", ROOT / "data" / "sample_output" / "rekognition_enrich.csv", _score_field_verdict("rek_silhouette")),
+            ("nova", ROOT / "data" / "sample_output" / "nova_scene_enrich.csv", _nova_fear_label_verdict("silhouette")),
         ],
     },
 }

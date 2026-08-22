@@ -18,6 +18,78 @@ tiebreaker when YuNet/Rekognition disagree) is an open question this
 field exists to answer once this script has a real AWS run -- scored the
 same way as everything else in this repo, not assumed.
 
+`poster_qa_verdict`/`poster_qa_reason` (PENDING -- also not in the real
+project's original prompt, also not yet live-verified): asks whether the
+image is actually poster art at all, a question this repo never had a
+field for. The real pipeline's `qa_title_ocr.py` already runs Nova with
+vision on every poster, but only to judge whether OCR's title reading is
+accurate -- its `no_title_on_poster` verdict fires identically whether
+the image (a) is a real, designed poster with an illegible/artistic title
+treatment (checked three real examples: *The Keep*, *Cypher*, *O* -- all
+famous posters where the title is worked into the art itself, not
+plain text) or (b) isn't poster art at all (checked one real example:
+*Dr. Jekyll and Mr. Hyde*, id 3006, whose `poster_path` is a plain
+production/actor photo with no poster design of any kind). Nova's own
+`title_ocr_qa_reason` text was the same boilerplate ("no visible title
+text") for all four -- proof the existing pass cannot tell these apart,
+because it was never asked to. This field asks the separate question
+directly. Rule out at your leisure: of the corpus's 4,915 posters
+(3.4%) with `title_ocr_qa_verdict == "no_title_on_poster"`, an unknown
+fraction are case (b), not case (a) -- this field is how that gets
+measured, once run, against a blind human spot-check the same way every
+other signal in this repo was validated.
+
+**Update -- real ground truth for this already exists in the sibling
+`poster-corpus-validation` repo**, discovered after this field was drafted:
+its `data/ground_truth/poster_type_human_labels.csv` is a real 2,539-poster
+blind human review of zero-OCR-text posters (`es_poster` / `no_es_poster` /
+`no_seguro`) -- **73.1% "no es poster."** Far higher than the informal
+4-poster spot check above suggested (1/4). It even covers the *Dr. Jekyll
+and Mr. Hyde* example cited above -- and the real human reviewer marked it
+`no_seguro`, not the clean "not a poster" call made above, a useful check
+on how confident this docstring should sound. That ground truth covers
+1,904 of this corpus's 4,915 `no_title_on_poster` ids (the other 3,011
+were never reviewed there -- different source filter, `ocr_chars == 0` in
+`poster_title_match.csv` vs. this corpus's `title_ocr_qa_verdict`). This
+field is still useful for covering the remaining 3,011 plus the rest of
+the 145k-poster corpus outside the zero-OCR-text set entirely, but check
+that ground truth file first before spending a new AWS call re-answering
+a question 1,904 posters already have a real human answer for.
+
+`labels`/`labels_top` (PENDING, also not in the real project's original
+prompt): a general open-vocabulary object/scene read, the direct
+counterpart to `26_rekognition_enrich.py`'s `rek_labels`/`rek_top`/
+`rek_top_conf` (Rekognition `DetectLabels`, up to 10 labels with
+confidence). No engine in this repo currently gives Nova's own read on
+this -- `nova_fear_labels` is deliberately horror-specific (weapon, blood,
+silhouette, etc.), not a general-purpose label list, so it's not a
+substitute. Added specifically so `rek_labels` can get the same
+reconcile-before-trust treatment every other Rekognition field in this
+document did.
+
+**Update -- `rek_labels`/`rek_top` already lost, on its own merits, no
+Nova run needed to reach that verdict:** a 60-poster verification review
+(shown Rekognition's actual claimed top label, asked whether it accurately
+describes something visible) found "Book" and "Advertisement" -- 57% of
+the corpus's `rek_top` values -- score 0/20 and 0/20, everything else
+9/20 (45%), 15.0% overall. Rekognition's general-purpose label model
+appears to read movie posters as a document *type* (rectangular,
+text-heavy → "Book"/"Advertisement") rather than describe their actual
+content. See docs/RESULTS.md, "Rekognition's overall cost-benefit
+ledger." `nova_labels` is still worth running once AWS access exists --
+it's now an independent read on its own merits, not a benchmark
+`rek_labels` needs a chance to win.
+
+**Not attempted: `rek_n_boxes`** (Rekognition's count of localized object
+*instances* across all detected labels, from `DetectLabels`'
+`Instances` field) has no Nova counterpart and isn't getting one -- this
+is a structural gap, not an oversight. `rek_n_boxes` requires per-object
+pixel localization, something a vision-language model prompted for JSON
+text output cannot do reliably (unlike a naming/counting judgment, which
+is exactly what `face_count` above already tests Nova on). Treat
+`rek_n_boxes` the same way this repo already treats `rek_sharp`/
+`rek_contrast`: no competitor exists to test it against, so it's kept on
+Rekognition's say-so alone, not reconciled.
 Two fields from that same real prompt are deliberately NOT here, because
 they already have a better home:
 - `title_text` -> poster-corpus-validation's gate 6 (`06_bedrock_ocr.py`)
@@ -94,16 +166,35 @@ SCENE_PROMPT = """You analyze a movie poster image. Return ONLY valid JSON (no m
   "person": 0.0,
   "animal": 0.0,
   "face_count": 0,
+  "poster_qa_verdict": "poster" | "not_poster" | "uncertain",
+  "poster_qa_reason": "one short sentence",
+  "labels": [{"name": "label", "conf": 0.0}],
   "description": "1-2 sentence neutral visual description for search/embeddings"
 }
 
 Rules:
 - fear_labels: up to 12 visual concepts useful for horror analysis (weapon, knife, gun, monster, creature, ghost, skull, blood, fire, water, silhouette, face, crowd, house, forest, vehicle, text-heavy, etc.). conf in 0..1.
+- labels: up to 10 GENERAL objects/scene elements you see, ordinary open-vocabulary
+  terms (e.g. person, car, building, tree, sky, animal, weapon, text) -- not
+  horror-specific like fear_labels above. Order from most to least confident;
+  conf in 0..1. This is a general-purpose read, the same kind of thing an
+  object/scene classifier would return, not a curated or thematic list.
 - weapon/monster/person/animal: likelihood 0..1 that the poster artwork genuinely shows that subject, from the image itself.
 - face_count: integer count of distinct real human faces visible (count each repeated
   instance in a pattern/collage separately; do not count skulls, monster faces, or
   faces implied only by a silhouette -- see docs/RESULTS.md's face-count reconciliation
   for the exact convention this follows, ported from a real blind human review).
+- poster_qa_verdict: "poster" if this image is genuine promotional poster/key-art design
+  intended to advertise the film -- illustrated art, a photographic composite, collage,
+  or any kind of title treatment, EVEN IF the title is stylized or illegible (letters
+  worked into the artwork itself, not plain rendered text -- this is not asking whether
+  the title is readable, a separate check already covers that). Use "not_poster" only
+  when the image is something else entirely: a plain production/behind-the-scenes
+  photo, an actor portrait or headshot, a video screenshot, a blank/placeholder image,
+  or artwork unrelated to promoting this film. Use "uncertain" only if genuinely
+  ambiguous after looking closely. poster_qa_reason: one short sentence naming what you
+  actually see (e.g. "black-and-white studio portrait of an actor, no poster design" or
+  "illustrated key art with the title worked into the building's architecture").
 - Keep description factual and concise (<= 45 words). No spoilers beyond what the poster shows.
 """
 
@@ -111,6 +202,8 @@ FIELDS = [
     "id", "title", "year",
     "nova_credits_text", "nova_other_text", "nova_mood", "nova_fear_labels",
     "nova_weapon", "nova_monster", "nova_person", "nova_animal", "nova_face_count",
+    "nova_poster_qa_verdict", "nova_poster_qa_reason",
+    "nova_labels", "nova_top_label", "nova_top_label_conf",
     "nova_description",
     "error",
 ]
@@ -172,6 +265,36 @@ def _face_count(val, default: int = 0) -> int:
     return max(0, x)
 
 
+def _poster_qa_verdict(val) -> str:
+    """New field -- normalizes Nova's poster/not_poster/uncertain verdict;
+    anything unrecognized (including a missing/malformed response) falls
+    back to "uncertain" rather than silently defaulting to "poster"."""
+    v = str(val or "").strip().lower()
+    return v if v in ("poster", "not_poster", "uncertain") else "uncertain"
+
+
+def _top_from_labels(val) -> tuple[str, float]:
+    """New field -- pulls the highest-confidence (name, conf) pair out of
+    the raw `labels` list, the direct counterpart to rek_top/rek_top_conf
+    (26_rekognition_enrich.py's DetectLabels top pick). Nova is asked to
+    already order labels most-to-least confident, but this re-sorts
+    defensively rather than trusting that ordering blindly."""
+    if not val or not isinstance(val, list):
+        return "", 0.0
+    best_name, best_conf = "", -1.0
+    for item in val:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        try:
+            conf = float(item.get("conf", item.get("confidence", 0.0)))
+        except (TypeError, ValueError):
+            conf = 0.0
+        if name and conf > best_conf:
+            best_name, best_conf = name, conf
+    return (best_name, round(max(0.0, best_conf), 4)) if best_name else ("", 0.0)
+
+
 def call_nova(bedrock, img_bytes: bytes, model_id: str) -> dict:
     result = bedrock.converse(
         modelId=model_id,
@@ -182,13 +305,14 @@ def call_nova(bedrock, img_bytes: bytes, model_id: str) -> dict:
                 {"text": SCENE_PROMPT},
             ],
         }],
-        inferenceConfig={"maxTokens": 700, "temperature": 0},
+        inferenceConfig={"maxTokens": 850, "temperature": 0},
     )
     text = result["output"]["message"]["content"][0]["text"].strip()
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
     import json
     data = json.loads(text)
+    top_label, top_label_conf = _top_from_labels(data.get("labels"))
     return {
         "nova_credits_text": str(data.get("credits_text") or "").replace("\n", " ").strip()[:500],
         "nova_other_text": str(data.get("other_text") or "").replace("\n", " ").strip()[:500],
@@ -199,6 +323,11 @@ def call_nova(bedrock, img_bytes: bytes, model_id: str) -> dict:
         "nova_person": _score(data.get("person")),
         "nova_animal": _score(data.get("animal")),
         "nova_face_count": _face_count(data.get("face_count")),
+        "nova_poster_qa_verdict": _poster_qa_verdict(data.get("poster_qa_verdict")),
+        "nova_poster_qa_reason": str(data.get("poster_qa_reason") or "").replace("\n", " ").strip()[:300],
+        "nova_labels": _fear_labels(data.get("labels")),
+        "nova_top_label": top_label,
+        "nova_top_label_conf": top_label_conf,
         "nova_description": str(data.get("description") or "").replace("\n", " ").strip()[:400],
     }
 

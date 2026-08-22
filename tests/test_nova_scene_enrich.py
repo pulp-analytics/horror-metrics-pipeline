@@ -15,6 +15,8 @@ _join_list = mod._join_list
 _fear_labels = mod._fear_labels
 _score = mod._score
 _face_count = mod._face_count
+_poster_qa_verdict = mod._poster_qa_verdict
+_top_from_labels = mod._top_from_labels
 
 
 def test_join_list_basic():
@@ -87,3 +89,39 @@ def test_face_count_negative_clamped_to_zero():
 def test_face_count_bad_input_defaults_to_zero():
     assert _face_count(None) == 0
     assert _face_count("not-a-number") == 0
+
+
+def test_poster_qa_verdict_valid_values_pass_through():
+    assert _poster_qa_verdict("poster") == "poster"
+    assert _poster_qa_verdict("not_poster") == "not_poster"
+    assert _poster_qa_verdict("uncertain") == "uncertain"
+
+
+def test_poster_qa_verdict_is_case_insensitive():
+    assert _poster_qa_verdict("Not_Poster") == "not_poster"
+
+
+def test_poster_qa_verdict_unrecognized_value_falls_back_to_uncertain():
+    assert _poster_qa_verdict("definitely a poster") == "uncertain"
+    assert _poster_qa_verdict("") == "uncertain"
+    assert _poster_qa_verdict(None) == "uncertain"
+
+
+def test_top_from_labels_picks_highest_confidence():
+    val = [{"name": "person", "conf": 0.6}, {"name": "weapon", "conf": 0.9}, {"name": "sky", "conf": 0.3}]
+    assert _top_from_labels(val) == ("weapon", 0.9)
+
+
+def test_top_from_labels_ignores_first_position_bias():
+    val = [{"name": "sky", "conf": 0.2}, {"name": "person", "conf": 0.85}]
+    assert _top_from_labels(val) == ("person", 0.85)
+
+
+def test_top_from_labels_empty_or_missing_is_blank():
+    assert _top_from_labels([]) == ("", 0.0)
+    assert _top_from_labels(None) == ("", 0.0)
+
+
+def test_top_from_labels_bad_entries_are_skipped():
+    val = ["not-a-dict", {"name": "", "conf": 0.9}, {"name": "person", "conf": "bad"}]
+    assert _top_from_labels(val) == ("person", 0.0)

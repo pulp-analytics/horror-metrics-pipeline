@@ -238,13 +238,13 @@ poster (one per detected face). Column names, units, and sentinels
 
 Several questions have more than one engine answering them -- "is there
 an animal," "is there a weapon," "is there a monster/supernatural
-creature," "is there a person," "is there water," "is there fire."
-`scripts/qa/build_signal_reconciliation_review_page.py` +
-`compare_signal_engines.py` exist to test each one for real rather than
+creature," "is there a person," "is there water," "is there fire," "is
+there a silhouette." `scripts/qa/build_signal_reconciliation_review_page.py`
++ `compare_signal_engines.py` exist to test each one for real rather than
 assume more engines voting is automatically safer:
 
 ```bash
-python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal   # or weapon, monster, person, water, fire
+python3 scripts/qa/build_signal_reconciliation_review_page.py --signal animal   # or weapon, monster, person, water, fire, silhouette
 # review the generated page, export its CSV
 python3 scripts/qa/compare_signal_engines.py --signal animal --human data/qa/animal_reconciliation_human_review.csv
 ```
@@ -264,9 +264,27 @@ available engine votes."** Concretely:
   real weapons. Rekognition also scored 100% here but is dropped anyway
   (free local model already running for `25`, no cost reason to also
   pay for a Rekognition call).
-- **monster**: OWLv2 (`20`) + Nova (`27`) -- same DINO failure (16.0%
-  accuracy, 0/40 on its own disagreement posters). Rekognition was never
-  a candidate -- it has no monster/creature field at all.
+- **monster**: **Nova (`27`) alone** -- corrected after a round 2 review.
+  The original rule here was OWLv2 (`20`) + Nova, tied with CLIP census on
+  a 50-poster round 1 that turned out to have only 3 real monsters in it
+  (same underpowered-sample problem water and silhouette's round 1 hit).
+  A properly powered round 2 (100 posters, 28 real positives) found OWLv2
+  performs close to DINO, not close to Nova: of 25 posters where OWLv2
+  alone said yes, only 2 (8%) were real monsters. Nova alone scored 80.0%
+  accuracy / 60.0% precision / 85.7% recall, clearly the best single
+  engine; OWLv2 AND Nova reaches higher precision (72.7%) but loses too
+  much recall (57.1%) to be worth it. DINO's original failure (16.0%
+  accuracy, 0/40 on its own disagreement posters) stands unchanged.
+  Rekognition was never a candidate -- it has no monster/creature field at
+  all. **Caveat**: round 2 skewed toward horror/scifi (75% of its sample)
+  vs. the corpus's real mix, underrepresenting thriller/mystery -- genres
+  where real monsters are much rarer. A round 3 sampled only from
+  thriller/mystery found Nova's real precision there is 31.9%, not the
+  60.0% round 2 measured -- but CLIP (23.8%) and OWLv2 (21.4%) are both
+  worse in that genre pair too, so the rule doesn't change; it's a
+  base-rate effect, not a fixable bug. Treat `nova_monster >= 0.5` as less
+  trustworthy on thriller/mystery posters than on horror/scifi ones. See
+  docs/RESULTS.md, "Monster: a correction."
 - **person**: Rekognition (`26`) + Nova (`27`) -- `19_pose_dynamism.py`'s
   own YOLOv8n person count scored 100% precision but only 14.3% recall:
   never wrong when it fires, but of 20 posters where Rekognition+Nova
@@ -288,6 +306,16 @@ available engine votes."** Concretely:
   photographic wildfire footage, a domain mismatch with illustrated
   poster art, and Nova already beat every deterministic candidate that
   was actually tested.
+- **silhouette**: `rek_silhouette` (`26`) **AND** Nova's `silhouette` tag
+  (`27`) -- the one signal where Nova is the noisy engine instead of the
+  anchor (30.8% corpus-wide positive rate vs. Rekognition's 9.6%). A
+  100-poster review (28 real positives) found Nova alone has perfect
+  recall (100%) but weak precision (35.4%) -- it over-fires on ordinary
+  dim/moody lighting -- while Rekognition alone is better balanced (51.0%
+  precision, 89.3% recall). Requiring both to agree beats either alone:
+  79.2% accuracy / 59.5% precision / 89.3% recall. This is the only AND
+  rule in the set; every other signal above resolved to a single engine,
+  an OR, or Nova alone.
 
 The pattern that emerged: DINO and Rekognition are each unreliable for
 exactly one question (DINO for weapon and monster, Rekognition for
@@ -295,13 +323,22 @@ animal) while being fine or excellent on the others -- *which* engine is
 the weak link is a real, per-question finding from blind human review,
 not something to guess or apply uniformly. Person adds a different
 failure shape entirely: pose isn't noisy like DINO/Rekognition, it's
-blind -- high precision, terrible recall, the opposite problem. Water and
-fire add a third shape: no engine failed outright, but no *deterministic*
-engine was good enough to earn a place next to Nova either -- both
-signals ended up as Nova alone, breaking the "one deterministic + Nova"
-default that held for the other four. This is exactly what the tool is
-for: re-run it for any new overlapping pair rather than assume the last
-question's answer generalizes.
+blind -- high precision, terrible recall, the opposite problem. Water,
+fire, and monster add a third shape: no engine failed outright, but no
+*deterministic* engine was good enough to earn a place next to Nova
+either -- all three ended up as Nova alone, breaking the "one
+deterministic + Nova" default that held for animal, weapon, and person.
+Monster only joined this group after a correction -- round 1 (3 real
+positives, too few to trust) showed a tie that a properly powered round 2
+overturned, the same underpowered-sample trap water and silhouette's
+round 1 already fell into. Silhouette adds a fourth shape: Nova itself is
+the noisy one there (100% recall, 35.4% precision) -- the first signal
+where trusting Nova alone would be the mistake, and the first where the
+resolved rule is a genuine AND (both engines must agree) instead of a
+single trusted source. This is exactly what the tool is for: re-run it
+for any new overlapping pair rather than assume the last question's
+answer generalizes -- and re-run it again with a bigger sample if the
+first round's positive count looks thin, the way monster's did.
 
 **A fifth candidate that looked promising and wasn't**: the private
 project separately ran real semantic/material/concept segmentation over
